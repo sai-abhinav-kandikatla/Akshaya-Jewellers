@@ -218,8 +218,48 @@ export default function CouponsListPage() {
         </div>
       ) : (
         <>
-          {/* Desktop view */}
-          <div className="card" style={{ overflowX: 'auto', display: 'block' }}>
+          {/* Mobile Cards View (< md) */}
+          <div className="flex flex-col gap-3 md:hidden mb-4">
+            {coupons.map(coupon => {
+              const status = computeDisplayStatus(coupon);
+              return (
+                <div key={coupon.id} className="card p-4 rounded-xl border border-gray-200 shadow-sm bg-white">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <Link href={`/dashboard/coupons/${coupon.coupon_code}`} className="font-bold text-[#b8860b] text-base">
+                        {coupon.coupon_code}
+                      </Link>
+                      <p className="text-sm font-semibold text-gray-900 mt-0.5">{coupon.customer_name}</p>
+                    </div>
+                    <span className={`badge badge-${status.toLowerCase().replace('_', '-')}`}>
+                      {status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-gray-600 mb-3 pt-2 border-t border-gray-100">
+                    <div>
+                      <span className="text-gray-400 block text-[10px] uppercase">Phone</span>
+                      <span className="font-medium text-gray-800">{coupon.phone_number}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-gray-400 block text-[10px] uppercase">Value</span>
+                      <span className="font-bold text-[#b8860b] text-sm">{formatCurrency(coupon.value)}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
+                    <span>Valid: {formatIndianDate(coupon.valid_from)} &rarr; {formatIndianDate(coupon.valid_until)}</span>
+                  </div>
+                  <div className="flex gap-2 pt-2 border-t border-gray-100">
+                    <Link href={`/dashboard/coupons/${coupon.coupon_code}`} className="btn btn-secondary btn-sm flex-1 text-center text-xs py-2">
+                      View Details
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View (>= md) */}
+          <div className="card hidden md:block" style={{ overflowX: 'auto' }}>
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
               <thead>
                 <tr className="table-header" style={{ borderBottom: '2px solid #e5e7eb', textAlign: 'left', backgroundColor: '#f9fafb' }}>
