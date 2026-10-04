@@ -6,8 +6,8 @@ import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
-  const [usernameInput, setUsernameInput] = useState('Akshaya_Jewellers');
-  const [password, setPassword] = useState('Akshaya@00');
+  const [usernameInput, setUsernameInput] = useState(process.env.NEXT_PUBLIC_ADMIN_USERNAME || 'Akshaya_Jewellers');
+  const [password, setPassword] = useState(process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'Akshaya@00');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
