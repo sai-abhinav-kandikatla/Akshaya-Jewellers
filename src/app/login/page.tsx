@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMsg(null);
     setLoading(true);
 
     if (isSignUp && password !== confirmPassword) {
@@ -28,13 +30,31 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
         });
+
         if (signUpError) throw signUpError;
-        router.push('/dashboard');
-        router.refresh();
+
+        if (signUpData.session) {
+          router.push('/dashboard');
+          router.refresh();
+        } else {
+          // Attempt immediate login if auto-confirm is enabled on Supabase
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (!signInErr && signInData.session) {
+            router.push('/dashboard');
+            router.refresh();
+          } else {
+            setSuccessMsg('Account created successfully! You can now Sign In below.');
+            setIsSignUp(false);
+          }
+        }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -99,6 +119,11 @@ export default function LoginPage() {
             </div>
           )}
 
+          {successMsg && (
+            <div className="badge badge-active mb-3 text-center" style={{ display: 'block', padding: '0.75rem', fontSize: '0.875rem', backgroundColor: '#ECFDF5', color: '#047857', border: '1px solid #A7F3D0' }}>
+              {successMsg}
+            </div>
+          )}
           {error && <div className="form-error mb-2">{error}</div>}
 
           <button
