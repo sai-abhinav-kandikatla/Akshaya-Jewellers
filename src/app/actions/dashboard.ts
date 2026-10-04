@@ -5,19 +5,32 @@ import { DashboardStats, CouponWithDisplayStatus } from '@/lib/types';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 
 export async function getDashboardStats(campaignId?: string): Promise<DashboardStats> {
+  const fallbackStats: DashboardStats = {
+    total_count: 0,
+    active_count: 0,
+    not_active_count: 0,
+    claimed_count: 0,
+    expired_count: 0,
+    cancelled_count: 0,
+    total_value: 0,
+    active_value: 0,
+    claimed_value: 0,
+    expired_value: 0,
+  };
+
   try {
     const supabase = await createClient();
     const { data, error } = await supabase.rpc('get_dashboard_stats', { p_campaign_id: campaignId || null });
 
-    if (error) {
+    if (error || !data) {
       console.error('getDashboardStats rpc error:', error);
-      throw new Error(error.message);
+      return fallbackStats;
     }
 
     return data as DashboardStats;
   } catch (error) {
     console.error('getDashboardStats exception:', error);
-    throw new Error('Failed to fetch dashboard stats.');
+    return fallbackStats;
   }
 }
 
