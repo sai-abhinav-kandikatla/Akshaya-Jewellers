@@ -50,11 +50,15 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
         retryCount++;
       } else {
         console.error('Error creating coupon:', error);
+        let msg = error?.message || 'Failed to create coupon due to database error.';
+        if (error?.code === '42P01' || msg.includes('does not exist')) {
+          msg = 'Database tables not initialized in Supabase! Please run the provided SQL script in your Supabase SQL Editor.';
+        } else if (error?.code === '42501' || msg.includes('row-level security')) {
+          msg = 'Row-level security policy error. Please run the updated SQL script in your Supabase SQL Editor.';
+        }
         return { 
           success: false, 
-          error: error?.message 
-            ? `Database Error: ${error.message}${error.details ? ` (${error.details})` : ''}` 
-            : 'Failed to create coupon due to database error.' 
+          error: `Database Error: ${msg}` 
         };
       }
     }

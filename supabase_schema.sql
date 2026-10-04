@@ -57,27 +57,14 @@ CREATE INDEX IF NOT EXISTS idx_coupons_dates ON public.coupons(valid_from, valid
 CREATE INDEX IF NOT EXISTS idx_audit_logs_coupon ON public.audit_logs(coupon_id);
 
 -- 6. Row Level Security (RLS) Policies
-
 ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Campaigns Policies (Authenticated staff only)
-CREATE POLICY "Allow authenticated users full access to campaigns"
-  ON public.campaigns FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- Coupons Policies
--- Allow authenticated staff full access
-CREATE POLICY "Allow authenticated staff full access to coupons"
-  ON public.coupons FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
--- Allow public/anonymous read access for verification by code
-CREATE POLICY "Allow anonymous read access to coupons for verification"
-  ON public.coupons FOR SELECT TO anon USING (true);
-
--- Audit Logs Policies
-CREATE POLICY "Allow authenticated staff access to audit logs"
-  ON public.audit_logs FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- Allow authenticated and anon full access (Admin System)
+CREATE POLICY "Allow public full access to campaigns" ON public.campaigns FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access to coupons" ON public.coupons FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access to audit_logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
 
 -- 7. ATOMIC CLAIM COUPON RPC FUNCTION
 CREATE OR REPLACE FUNCTION public.claim_coupon(p_coupon_code TEXT)
