@@ -6,66 +6,62 @@ import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [usernameInput, setUsernameInput] = useState('Akshaya_Jewellers');
+  const [password, setPassword] = useState('Akshaya@00');
   const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccessMsg(null);
     setLoading(true);
 
-    if (isSignUp && password !== confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
+    // Normalize username or email
+    const trimmedInput = usernameInput.trim();
+    let email = trimmedInput;
+
+    if (!email.includes('@')) {
+      // Map username to internal admin email format
+      const cleanUsername = trimmedInput.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      email = `${cleanUsername}@akshayajewellers.com`;
     }
 
     try {
-      if (isSignUp) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      // 1. Try standard sign in
+      let { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      // 2. If user doesn't exist yet on Supabase project, auto-provision initial admin account
+      if (signInError && (signInError.message.includes('Invalid login credentials') || signInError.message.includes('User not found'))) {
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
         });
 
-        if (signUpError) throw signUpError;
-
-        if (signUpData.session) {
-          router.push('/dashboard');
-          router.refresh();
-        } else {
-          // Attempt immediate login if auto-confirm is enabled on Supabase
-          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+        if (!signUpError) {
+          // Retry login immediately after provisioning
+          const { error: retryError } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
-
-          if (!signInErr && signInData.session) {
-            router.push('/dashboard');
-            router.refresh();
-          } else {
-            setSuccessMsg('Account created successfully! You can now Sign In below.');
-            setIsSignUp(false);
-          }
+          signInError = retryError;
         }
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (signInError) throw signInError;
-        router.push('/dashboard');
-        router.refresh();
       }
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      // Success -> Redirect to dashboard
+      router.push('/dashboard');
+      router.refresh();
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      console.error('Login error:', err);
+      setError(err.message || 'Invalid username or password');
     } finally {
       setLoading(false);
     }
@@ -80,17 +76,18 @@ export default function LoginPage() {
           </div>
         </div>
         <h1 className="login-title text-center">Akshaya Jewellers</h1>
-        <p className="text-muted text-center mb-4">Gift Coupon Management System</p>
+        <p className="text-muted text-center mb-6">Admin Gift Coupon Management System</p>
 
-        <form onSubmit={handleAuth}>
+        <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label className="form-label" htmlFor="email">Email</label>
+            <label className="form-label" htmlFor="username">Username or Email</label>
             <input
-              id="email"
-              type="email"
+              id="username"
+              type="text"
               className="form-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={usernameInput}
+              onChange={(e) => setUsernameInput(e.target.value)}
+              placeholder="Akshaya_Jewellers"
               required
             />
           </div>
@@ -102,51 +99,29 @@ export default function LoginPage() {
               className="form-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="Akshaya@00"
               required
             />
           </div>
-          {isSignUp && (
-            <div className="form-group">
-              <label className="form-label" htmlFor="confirmPassword">Confirm Password</label>
-              <input
-                id="confirmPassword"
-                type="password"
-                className="form-input"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-          )}
 
-          {successMsg && (
-            <div className="badge badge-active mb-3 text-center" style={{ display: 'block', padding: '0.75rem', fontSize: '0.875rem', backgroundColor: '#ECFDF5', color: '#047857', border: '1px solid #A7F3D0' }}>
-              {successMsg}
+          {error && (
+            <div className="form-error mb-4 p-3 text-center rounded bg-red-50 text-red-600 border border-red-200 text-sm">
+              {error}
             </div>
           )}
-          {error && <div className="form-error mb-2">{error}</div>}
 
           <button
             type="submit"
-            className="btn btn-primary btn-lg mt-2"
+            className="btn btn-primary btn-lg mt-4"
             style={{ width: '100%' }}
             disabled={loading}
           >
-            {loading ? (isSignUp ? 'Creating Account...' : 'Signing in...') : (isSignUp ? 'Create Account' : 'Sign In')}
+            {loading ? 'Authenticating...' : 'SIGN IN'}
           </button>
         </form>
 
-        <div className="text-center mt-4">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError(null);
-            }}
-          >
-            {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Create one'}
-          </button>
+        <div className="text-center mt-6 text-xs text-gray-500 border-t border-gray-100 pt-4">
+          🔒 Restricted Access • Akshaya Jewellers Staff Only
         </div>
       </div>
     </div>
