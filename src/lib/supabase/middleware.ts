@@ -28,14 +28,16 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Use getUser() instead of getSession() to validate the JWT on the server
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const adminCookie = request.cookies.get('akshaya_admin_session');
+  const isAuthenticated = !!user || !!adminCookie;
+
   // Protect dashboard routes - redirect to login if not authenticated
   if (
-    !user &&
+    !isAuthenticated &&
     request.nextUrl.pathname.startsWith('/dashboard')
   ) {
     const url = request.nextUrl.clone();
@@ -44,7 +46,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // If user is authenticated and hits login page, redirect to dashboard
-  if (user && request.nextUrl.pathname === '/login') {
+  if (isAuthenticated && request.nextUrl.pathname === '/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);

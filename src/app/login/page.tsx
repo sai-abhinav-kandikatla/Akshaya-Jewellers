@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { createClient } from '@/lib/supabase/client';
+import { adminLoginAction } from '@/app/actions/auth';
 
 export default function LoginPage() {
   const [usernameInput, setUsernameInput] = useState(process.env.NEXT_PUBLIC_ADMIN_USERNAME || 'Akshaya_Jewellers');
@@ -11,54 +11,21 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    // Normalize username or email
-    const trimmedInput = usernameInput.trim();
-    let email = trimmedInput;
-
-    if (!email.includes('@')) {
-      // Map username to internal admin email format
-      const cleanUsername = trimmedInput.toLowerCase().replace(/[^a-z0-9_]/g, '');
-      email = `${cleanUsername}@akshayajewellers.com`;
-    }
-
     try {
-      // 1. Try standard sign in
-      let { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const res = await adminLoginAction(usernameInput, password);
 
-      // 2. If user doesn't exist yet on Supabase project, auto-provision initial admin account
-      if (signInError && (signInError.message.includes('Invalid login credentials') || signInError.message.includes('User not found'))) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
-        if (!signUpError) {
-          // Retry login immediately after provisioning
-          const { error: retryError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          signInError = retryError;
-        }
+      if (res.success) {
+        router.push('/dashboard');
+        router.refresh();
+      } else {
+        setError(res.error || 'Invalid username or password');
       }
-
-      if (signInError) {
-        throw signInError;
-      }
-
-      // Success -> Redirect to dashboard
-      router.push('/dashboard');
-      router.refresh();
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Invalid username or password');

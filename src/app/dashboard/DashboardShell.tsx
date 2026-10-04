@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
+import { adminLogoutAction } from '@/app/actions/auth';
+
 export default function DashboardShell({
   children,
   userEmail,
@@ -14,12 +16,12 @@ export default function DashboardShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await adminLogoutAction();
     router.push('/login');
+    router.refresh();
   };
 
   const navItems = [
