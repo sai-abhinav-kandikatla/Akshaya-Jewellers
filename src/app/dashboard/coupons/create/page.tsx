@@ -3,9 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createCoupon } from '@/app/actions/coupons';
-import { getCampaigns } from '@/app/actions/campaigns';
 import { validateCouponForm } from '@/lib/utils/validators';
-import { Campaign } from '@/lib/types';
 import { getTodayIST } from '@/lib/utils/formatters';
 
 export default function CreateCouponPage() {
@@ -17,10 +15,8 @@ export default function CreateCouponPage() {
     couponValue: '',
     validFrom: '',
     validUntil: '',
-    campaignId: ''
   });
   
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -28,17 +24,6 @@ export default function CreateCouponPage() {
   useEffect(() => {
     // Set default Valid From to today IST
     setFormData(prev => ({ ...prev, validFrom: getTodayIST() }));
-
-    // Fetch campaigns
-    async function fetchCampaigns() {
-      try {
-        const data = await getCampaigns();
-        if (data) setCampaigns(data);
-      } catch (err) {
-        console.error('Failed to load campaigns:', err);
-      }
-    }
-    fetchCampaigns();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -74,7 +59,6 @@ export default function CreateCouponPage() {
         coupon_value: Number(formData.couponValue),
         valid_from: formData.validFrom,
         valid_until: formData.validUntil,
-        campaign_id: formData.campaignId || undefined
       };
       
       const res = await createCoupon(payload);
@@ -175,22 +159,6 @@ export default function CreateCouponPage() {
               required
             />
             {errors.validUntil && <p className="form-error">{errors.validUntil}</p>}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="campaignId">Campaign (Optional)</label>
-            <select
-              id="campaignId"
-              name="campaignId"
-              className="form-input"
-              value={formData.campaignId}
-              onChange={handleChange}
-            >
-              <option value="">-- Select a Campaign --</option>
-              {campaigns.map(camp => (
-                <option key={camp.id} value={camp.id}>{camp.name}</option>
-              ))}
-            </select>
           </div>
 
           <div className="card-footer" style={{ marginTop: '2rem' }}>
