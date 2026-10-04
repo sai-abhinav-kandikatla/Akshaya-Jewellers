@@ -40,9 +40,13 @@
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+ADMIN_USERNAME=Akshaya_Jewellers
+ADMIN_PASSWORD=replace_with_a_strong_password
+ADMIN_SESSION_SECRET=replace_with_a_random_secret
 ```
 
 > ⚠️ Never commit `.env.local` to version control!
+> Keep admin credentials and the session secret server-only. Do not add the `NEXT_PUBLIC_` prefix to them.
 
 ---
 
@@ -90,6 +94,9 @@ After creating your admin account, to prevent others from signing up:
 3. Add the environment variables:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `ADMIN_USERNAME`
+   - `ADMIN_PASSWORD`
+   - `ADMIN_SESSION_SECRET`
 4. Deploy!
 
 ---

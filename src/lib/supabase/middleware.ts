@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { verifyAdminSessionToken } from '@/lib/auth/adminSession';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -33,7 +34,8 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const adminCookie = request.cookies.get('akshaya_admin_session');
-  const isAuthenticated = !!user || !!adminCookie;
+  const hasAdminSession = await verifyAdminSessionToken(adminCookie?.value);
+  const isAuthenticated = !!user || hasAdminSession;
 
   // Protect dashboard routes - redirect to login if not authenticated
   if (

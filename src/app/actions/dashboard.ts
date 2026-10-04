@@ -28,7 +28,11 @@ export async function getDashboardStats(campaignId?: string): Promise<DashboardS
     }
 
     // Direct table fallback if RPC fails or is missing
-    const { data: coupons, error: queryError } = await supabase.from('coupons').select('*');
+    let couponsQuery = supabase.from('coupons').select('*');
+    if (campaignId) {
+      couponsQuery = couponsQuery.eq('campaign_id', campaignId);
+    }
+    const { data: coupons, error: queryError } = await couponsQuery;
     if (queryError || !coupons) {
       return fallbackStats;
     }
@@ -80,6 +84,7 @@ export async function getRecentCoupons(limit: number = 10): Promise<CouponWithDi
 
     return (data || []).map((c: any) => ({
       ...c,
+      value: Number(c.coupon_value ?? c.value ?? 0),
       campaign_name: c.campaigns?.name,
       display_status: computeDisplayStatus(c.status, c.valid_from, c.valid_until)
     }));

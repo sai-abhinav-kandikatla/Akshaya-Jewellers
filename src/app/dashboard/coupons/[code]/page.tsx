@@ -2,20 +2,19 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { getCouponByCode, claimCoupon, cancelCoupon } from '@/app/actions/coupons';
-import { getCampaigns } from '@/app/actions/campaigns';
 import { getCouponAuditHistory } from '@/app/actions/audit';
 import { formatCurrency, formatIndianDate, formatDateTime } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { generateWhatsAppURL } from '@/lib/utils/whatsapp';
-import { Coupon, AuditEvent, Campaign } from '@/lib/types';
+import { Coupon, AuditEvent } from '@/lib/types';
 
 export default function CouponDetailPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
   const router = useRouter();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [auditHistory, setAuditHistory] = useState<AuditEvent[]>([]);
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,12 +39,6 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
         setCoupon(data);
         const history = await getCouponAuditHistory(data.id);
         setAuditHistory(history);
-        
-        if (data.campaign_id) {
-          const campaigns = await getCampaigns();
-          const found = campaigns.find(c => c.id === data.campaign_id);
-          if (found) setCampaign(found);
-        }
       } else {
         setError('Coupon not found');
       }
@@ -73,14 +66,14 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
       if (modalState.type === 'CLAIM') {
         const res = await claimCoupon(coupon.id);
         if (res.success) {
-          showToast('Coupon redeemed successfully!', 'success');
+          showToast('✓ Coupon redeemed successfully!', 'success');
         } else {
           showToast(res.error || 'Failed to redeem coupon', 'error');
         }
       } else if (modalState.type === 'CANCEL') {
         const res = await cancelCoupon(coupon.id);
         if (res.success) {
-          showToast('Coupon cancelled successfully!', 'success');
+          showToast('Coupon cancelled', 'success');
         } else {
           showToast(res.error || 'Failed to cancel coupon', 'error');
         }
@@ -97,7 +90,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
   const handleCopyCode = () => {
     if (coupon) {
       navigator.clipboard.writeText(coupon.coupon_code);
-      showToast('Coupon code copied!', 'success');
+      showToast('Copied to clipboard', 'success');
     }
   };
 
@@ -109,182 +102,188 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
   };
 
   if (isLoading) return (
-    <div style={{ textAlign: 'center', padding: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-      <div className="loading-spinner" />
-      <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Loading details...</span>
+    <div className="py-16 text-center flex flex-col items-center gap-3">
+      <div className="loading-spinner w-8 h-8 border-3 border-[#d4af37] border-t-transparent rounded-full animate-spin" />
+      <span className="text-sm text-gray-500 font-medium">Loading details...</span>
     </div>
   );
-  if (error || !coupon) return <div className="empty-state"><h2>{error || 'Coupon not found'}</h2><button onClick={() => router.push('/dashboard/coupons')} className="btn btn-secondary mt-4">Go Back</button></div>;
+
+  if (error || !coupon) return (
+    <div className="empty-state py-12 text-center space-y-4">
+      <h2 className="text-lg font-bold text-gray-900">{error || 'Coupon not found'}</h2>
+      <button onClick={() => router.push('/dashboard/coupons')} className="btn btn-secondary text-sm">
+        ← Go Back
+      </button>
+    </div>
+  );
 
   const status = computeDisplayStatus(coupon);
   const verificationUrl = typeof window !== 'undefined' ? `${window.location.origin}/verify/${coupon.coupon_code}` : '';
 
   return (
-    <div className="dashboard-layout coupon-detail-page">
+    <div className="max-w-xl mx-auto space-y-6 pb-8">
       {toast && (
-        <div className="toast-container">
-          <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+        <div className="toast-container fixed bottom-20 right-4 z-50">
+          <div className={`toast px-4 py-2 rounded-xl text-xs font-semibold shadow-xl text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-gray-900'}`}>
+            {toast.message}
+          </div>
         </div>
       )}
 
-      {/* Confirmation Modal */}
+      {/* Confirmation Bottom Sheet / Modal (Master Prompt Section 25) */}
       {modalState.isOpen && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="modal card" style={{ maxWidth: '400px', width: '100%', background: '#fff', borderRadius: '8px', padding: '1.5rem' }}>
-            <div className="modal-header">
-              <h3 style={{ marginBottom: '1rem', color: modalState.type === 'CANCEL' ? '#dc2626' : '#166534' }}>
-                Confirm {modalState.type === 'CLAIM' ? 'Claim' : 'Cancellation'}
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-slideUp">
+            <div className="text-center">
+              <h3 className={`text-xl font-bold ${modalState.type === 'CANCEL' ? 'text-red-600' : 'text-gray-900'}`}>
+                {modalState.type === 'CLAIM' ? 'Redeem this coupon?' : 'Cancel this coupon?'}
               </h3>
+              <p className="text-xs text-gray-500 mt-1">This action cannot be undone.</p>
             </div>
-            <div className="modal-body" style={{ marginBottom: '1.5rem' }}>
-              <p>Are you sure you want to {modalState.type === 'CLAIM' ? 'claim' : 'cancel'} this coupon?</p>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>This action cannot be undone.</p>
+
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm space-y-1">
+              <p><span className="text-gray-500">Customer:</span> <strong>{coupon.customer_name}</strong></p>
+              <p><span className="text-gray-500">Coupon:</span> <strong>{coupon.coupon_code}</strong></p>
+              <p><span className="text-gray-500">Value:</span> <strong className="text-[#b8860b]">{formatCurrency(coupon.value)}</strong></p>
             </div>
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button className="btn btn-ghost" onClick={() => setModalState({ isOpen: false, type: null })} disabled={isProcessing}>
-                Cancel
+
+            <div className="space-y-2 pt-2">
+              <button
+                className={`btn btn-lg w-full font-bold ${modalState.type === 'CLAIM' ? 'btn-primary' : 'btn-danger'}`}
+                onClick={handleAction}
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'Processing...' : modalState.type === 'CLAIM' ? 'CONFIRM REDEMPTION' : 'YES, CANCEL COUPON'}
               </button>
-              <button className={`btn ${modalState.type === 'CLAIM' ? 'btn-primary' : 'btn-danger'}`} onClick={handleAction} disabled={isProcessing}>
-                {isProcessing ? 'Processing...' : `Yes, ${modalState.type}`}
+              <button
+                className="btn btn-ghost w-full py-3 text-sm text-gray-600 font-semibold"
+                onClick={() => setModalState({ isOpen: false, type: null })}
+                disabled={isProcessing}
+              >
+                CANCEL
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button onClick={() => router.back()} className="btn btn-ghost btn-icon" style={{ padding: '0.5rem' }} aria-label="Go back">
-            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" />
-              <polyline points="12 19 5 12 12 5" />
-            </svg>
-          </button>
-          <h1 style={{ margin: 0 }}>Coupon Details</h1>
-        </div>
-        <span className={`badge badge-${status.toLowerCase().replace('_', '-')}`} style={{ fontSize: '1rem', padding: '0.5rem 1rem' }}>
+      {/* Top Header */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => router.back()}
+          className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 font-medium py-1 px-2 rounded-lg hover:bg-gray-100"
+        >
+          ← Back
+        </button>
+        <span className={`badge badge-${status.toLowerCase().replace('_', '-')}`}>
           {status}
         </span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-        {/* Left Column: Details & Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div className="card coupon-detail">
-            <div className="card-body">
-              <div style={{ textAlign: 'center', marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid #e5e7eb' }}>
-                <p className="text-muted" style={{ marginBottom: '0.25rem' }}>Coupon Value</p>
-                <h2 style={{ fontSize: '2.5rem', color: '#d4af37', margin: 0 }}>{formatCurrency(coupon.value)}</h2>
-                <h3 style={{ fontSize: '1.5rem', letterSpacing: '2px', marginTop: '0.5rem', color: '#111827' }}>{coupon.coupon_code}</h3>
-              </div>
-
-              <div style={{ display: 'grid', gap: '1rem' }}>
-                <div>
-                  <p className="stat-label">Customer Name</p>
-                  <p style={{ fontWeight: '500', fontSize: '1.1rem' }}>{coupon.customer_name}</p>
-                </div>
-                <div>
-                  <p className="stat-label">Phone Number</p>
-                  <p style={{ fontWeight: '500' }}>{coupon.phone_number}</p>
-                </div>
-                {campaign && (
-                  <div>
-                    <p className="stat-label">Campaign</p>
-                    <p>{campaign.name}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="stat-label">Validity Period</p>
-                  <p>{formatIndianDate(coupon.valid_from)} &mdash; {formatIndianDate(coupon.valid_until)}</p>
-                </div>
-                
-                {status === 'CLAIMED' && coupon.claimed_at && (
-                  <div style={{ padding: '0.75rem', background: '#f0fdf4', borderRadius: '4px', border: '1px solid #bbf7d0' }}>
-                    <p className="stat-label" style={{ color: '#166534' }}>Claimed Details</p>
-                    <p style={{ color: '#15803d' }}>Date: {formatDateTime(coupon.claimed_at)}</p>
-                    {coupon.claimed_by && <p style={{ color: '#15803d' }}>By Admin ID: {coupon.claimed_by}</p>}
-                  </div>
-                )}
-
-                {status === 'CANCELLED' && coupon.cancelled_at && (
-                  <div style={{ padding: '0.75rem', background: '#fef2f2', borderRadius: '4px', border: '1px solid #fecaca' }}>
-                    <p className="stat-label" style={{ color: '#991b1b' }}>Cancellation Details</p>
-                    <p style={{ color: '#b91c1c' }}>Date: {formatDateTime(coupon.cancelled_at)}</p>
-                    {coupon.cancelled_by && <p style={{ color: '#b91c1c' }}>By Admin ID: {coupon.cancelled_by}</p>}
-                  </div>
-                )}
-
-                <div>
-                  <p className="stat-label">Created At</p>
-                  <p style={{ fontSize: '0.875rem' }}>{formatDateTime(coupon.created_at)}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>Actions</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {status === 'ACTIVE' && (
-                <button className="btn btn-primary btn-lg" onClick={() => setModalState({ isOpen: true, type: 'CLAIM' })}>
-                  CLAIM COUPON
-                </button>
-              )}
-              
-              <button className="btn btn-whatsapp" onClick={handleWhatsApp}>
-                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
-                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                </svg>
-                SEND ON WHATSAPP
-              </button>
-              
-              <button className="btn btn-ghost" onClick={handleCopyCode}>
-                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
-                COPY CODE
-              </button>
-
-              {(status === 'ACTIVE' || status === 'NOT_ACTIVE') && (
-                <button className="btn btn-danger" onClick={() => setModalState({ isOpen: true, type: 'CANCEL' })} style={{ marginTop: '0.5rem' }}>
-                  CANCEL COUPON
-                </button>
-              )}
-            </div>
-          </div>
+      {/* Main Info Card */}
+      <div className="card bg-white p-5 rounded-2xl shadow-md border border-gray-200 space-y-4">
+        <div className="text-center border-b border-gray-100 pb-4">
+          <p className="text-xs text-gray-400 uppercase font-semibold">Coupon Code</p>
+          <h1 className="text-2xl sm:text-3xl font-mono font-bold text-gray-900 my-1">{coupon.coupon_code}</h1>
+          <p className="text-2xl font-bold text-[#b8860b] mt-1">{formatCurrency(coupon.value)}</p>
         </div>
 
-        {/* Right Column: QR Code & Timeline */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div className="card" style={{ padding: '1.5rem', textAlign: 'center' }}>
-            <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>Verification QR</h3>
-            <div style={{ background: '#fff', display: 'inline-block', padding: '1rem', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-              {verificationUrl && <QRCodeSVG value={verificationUrl} size={180} level="M" />}
-            </div>
-            <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>Scan to view public verification page</p>
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between border-b border-gray-50 pb-2">
+            <span className="text-gray-500">Customer Name</span>
+            <span className="font-bold text-gray-900">{coupon.customer_name}</span>
+          </div>
+          <div className="flex justify-between border-b border-gray-50 pb-2">
+            <span className="text-gray-500">Phone Number</span>
+            <span className="font-semibold text-gray-800">{coupon.phone_number}</span>
+          </div>
+          <div className="flex justify-between border-b border-gray-50 pb-2">
+            <span className="text-gray-500">Validity Period</span>
+            <span className="font-semibold text-gray-800">{formatIndianDate(coupon.valid_from)} – {formatIndianDate(coupon.valid_until)}</span>
           </div>
 
-          <div className="card" style={{ padding: '1.5rem' }}>
-            <h3 style={{ marginBottom: '1.5rem', fontSize: '1.1rem' }}>Audit Timeline</h3>
-            {auditHistory.length === 0 ? (
-              <p className="text-muted">No history available.</p>
-            ) : (
-              <div className="timeline" style={{ position: 'relative', paddingLeft: '1.5rem', borderLeft: '2px solid #e5e7eb' }}>
-                {auditHistory.map((audit, idx) => (
-                  <div key={audit.id || idx} className="timeline-item" style={{ position: 'relative', marginBottom: '1.5rem' }}>
-                    <div style={{ position: 'absolute', left: '-1.85rem', top: '0.25rem', width: '12px', height: '12px', borderRadius: '50%', background: '#d4af37', border: '2px solid #fff' }}></div>
-                    <div style={{ background: '#f9fafb', padding: '0.75rem', borderRadius: '6px' }}>
-                      <p style={{ fontWeight: '500', margin: 0, fontSize: '0.95rem' }}>{audit.action.replace('_', ' ')}</p>
-                      {audit.description && <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: '0.25rem 0' }}>{audit.description}</p>}
-                      <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: 0 }}>{formatDateTime(audit.created_at)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {status === 'CLAIMED' && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800 font-medium">
+              ✓ Redeemed on {coupon.claimed_at ? formatDateTime(coupon.claimed_at) : ''}
+            </div>
+          )}
+
+          {status === 'EXPIRED' && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 font-medium">
+              ⏰ Expired on {formatIndianDate(coupon.valid_until)}
+            </div>
+          )}
+
+          {status === 'CANCELLED' && (
+            <div className="p-3 bg-gray-100 border border-gray-300 rounded-xl text-xs text-gray-700 font-medium">
+              ❌ Coupon has been cancelled.
+            </div>
+          )}
         </div>
+
+        {/* QR Code */}
+        <div className="text-center pt-2">
+          <div className="inline-block p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+            {verificationUrl && <QRCodeSVG value={verificationUrl} size={150} level="M" />}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">Scan for public verification</p>
+        </div>
+      </div>
+
+      {/* Action Buttons (Master Prompt Section 24) */}
+      <div className="space-y-3">
+        {status === 'ACTIVE' && (
+          <button
+            onClick={() => setModalState({ isOpen: true, type: 'CLAIM' })}
+            className="btn btn-primary btn-lg w-full font-bold shadow-md rounded-xl"
+          >
+            CLAIM / REDEEM COUPON
+          </button>
+        )}
+
+        <button
+          onClick={handleWhatsApp}
+          className="btn btn-whatsapp btn-lg w-full font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
+        >
+          RESEND ON WHATSAPP
+        </button>
+
+        <button
+          onClick={handleCopyCode}
+          className="btn btn-ghost w-full py-3 border border-gray-300 rounded-xl text-sm font-semibold"
+        >
+          COPY CODE
+        </button>
+
+        {/* Visually Separated Cancel Action */}
+        {(status === 'ACTIVE' || status === 'NOT_ACTIVE') && (
+          <div className="pt-4 border-t border-gray-200">
+            <button
+              onClick={() => setModalState({ isOpen: true, type: 'CANCEL' })}
+              className="btn btn-danger w-full py-3 text-sm font-bold rounded-xl opacity-90 hover:opacity-100"
+            >
+              CANCEL COUPON
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Audit History Timeline (Master Prompt Section 33) */}
+      <div className="card bg-white p-5 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+        <h3 className="text-sm font-bold text-gray-900">Audit History Timeline</h3>
+        {auditHistory.length === 0 ? (
+          <p className="text-xs text-gray-400">No history logged yet.</p>
+        ) : (
+          <div className="space-y-3 pl-2 border-l-2 border-gold-300 ml-2">
+            {auditHistory.map((audit, idx) => (
+              <div key={audit.id || idx} className="relative pl-4 text-xs">
+                <span className="absolute -left-[17px] top-1 w-2.5 h-2.5 rounded-full bg-[#d4af37]" />
+                <p className="font-bold text-gray-800">{audit.action.replace(/_/g, ' ')}</p>
+                <p className="text-[10px] text-gray-400">{formatDateTime(audit.created_at)}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

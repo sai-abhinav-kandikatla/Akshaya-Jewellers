@@ -2,11 +2,16 @@
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminSessionToken } from '@/lib/auth/adminSession';
 
 export async function adminLoginAction(usernameInput: string, passwordInput: string) {
   try {
-    const adminUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME || process.env.ADMIN_USERNAME || 'Akshaya_Jewellers';
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'Akshaya@00';
+    const adminUsername = process.env.ADMIN_USERNAME || process.env.NEXT_PUBLIC_ADMIN_USERNAME;
+    const adminPassword = process.env.ADMIN_PASSWORD || process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+
+    if (!adminUsername || !adminPassword) {
+      return { success: false, error: 'Admin login is not configured on the server.' };
+    }
 
     const cleanInput = usernameInput.trim();
     const isAdminUser = cleanInput.toLowerCase() === adminUsername.toLowerCase() || 
@@ -17,6 +22,11 @@ export async function adminLoginAction(usernameInput: string, passwordInput: str
 
     if (!isAdminUser || !isCorrectPassword) {
       return { success: false, error: 'Invalid username or password' };
+    }
+
+    const sessionToken = await createAdminSessionToken();
+    if (!sessionToken) {
+      return { success: false, error: 'Admin session signing is not configured on the server.' };
     }
 
     const email = 'akshaya_jewellers@akshayajewellers.com';
@@ -50,12 +60,12 @@ export async function adminLoginAction(usernameInput: string, passwordInput: str
 
     // Set fallback admin session cookie to guarantee login even if email confirmation is required by Supabase
     const cookieStore = await cookies();
-    cookieStore.set('akshaya_admin_session', 'authenticated', {
+    cookieStore.set('akshaya_admin_session', sessionToken.value, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: sessionToken.maxAge,
     });
 
     cookieStore.set('akshaya_admin_email', email, {

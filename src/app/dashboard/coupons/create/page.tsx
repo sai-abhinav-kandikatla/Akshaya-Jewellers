@@ -29,7 +29,6 @@ export default function CreateCouponPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error for the field when typing
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -65,7 +64,7 @@ export default function CreateCouponPage() {
       if (res.success && res.data) {
         router.push(`/dashboard/coupons/${res.data.coupon_code}/success`);
       } else {
-        setSubmitError(res.error || res.message || 'Failed to create coupon.');
+        setSubmitError(res.error || res.message || 'Failed to create coupon. Please try again.');
         setIsSubmitting(false);
       }
     } catch (err: any) {
@@ -75,21 +74,26 @@ export default function CreateCouponPage() {
   };
 
   return (
-    <div className="dashboard-layout">
-      <div className="page-header">
-        <h1>Create Gift Coupon</h1>
+    <div className="max-w-xl mx-auto space-y-6">
+      <div className="page-header flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#3E2723]">Create Gift Coupon</h1>
+          <p className="text-xs text-gray-500 mt-0.5">Generate an exclusive coupon for Akshaya Jewellers</p>
+        </div>
       </div>
 
-      <div className="card card-gold">
-        <form onSubmit={handleSubmit} className="card-body">
+      <div className="card bg-white p-5 sm:p-7 rounded-2xl shadow-md border border-gray-200">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {submitError && (
-            <div className="toast-error" style={{ marginBottom: '1rem', padding: '0.75rem', borderRadius: '4px' }}>
-              {submitError}
+            <div className="p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm font-medium">
+              ⚠️ {submitError}
             </div>
           )}
 
           <div className="form-group">
-            <label className="form-label" htmlFor="customerName">Customer Name <span style={{color: 'red'}}>*</span></label>
+            <label className="form-label" htmlFor="customerName">
+              Customer Name <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               id="customerName"
@@ -97,78 +101,97 @@ export default function CreateCouponPage() {
               className="form-input"
               value={formData.customerName}
               onChange={handleChange}
-              placeholder="e.g. Ananya Sharma"
+              placeholder="e.g. Rahul / Ananya Sharma"
+              autoCapitalize="words"
               required
             />
-            {errors.customerName && <p className="form-error">{errors.customerName}</p>}
+            {errors.customerName && <p className="text-xs text-red-600 mt-1 font-medium">{errors.customerName}</p>}
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="mobileNumber">Mobile Number <span style={{color: 'red'}}>*</span></label>
+            <label className="form-label" htmlFor="mobileNumber">
+              Customer Mobile Number (🇮🇳 +91) <span className="text-red-500">*</span>
+            </label>
             <input
               type="tel"
               id="mobileNumber"
               name="mobileNumber"
+              inputMode="numeric"
+              pattern="[0-9]*"
               className="form-input"
               value={formData.mobileNumber}
               onChange={handleChange}
               placeholder="9876543210"
               required
             />
-            {errors.mobileNumber && <p className="form-error">{errors.mobileNumber}</p>}
+            {errors.mobileNumber && <p className="text-xs text-red-600 mt-1 font-medium">{errors.mobileNumber}</p>}
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="couponValue">Coupon Value (₹) <span style={{color: 'red'}}>*</span></label>
+            <label className="form-label" htmlFor="couponValue">
+              Coupon Value (₹) <span className="text-red-500">*</span>
+            </label>
             <input
               type="number"
               id="couponValue"
               name="couponValue"
+              inputMode="numeric"
               className="form-input"
               value={formData.couponValue}
               onChange={handleChange}
               min="1"
-              placeholder="e.g. 5000"
+              placeholder="e.g. 11111"
               required
             />
-            {errors.couponValue && <p className="form-error">{errors.couponValue}</p>}
+            {errors.couponValue && <p className="text-xs text-red-600 mt-1 font-medium">{errors.couponValue}</p>}
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="validFrom">Valid From</label>
-            <input
-              type="date"
-              id="validFrom"
-              name="validFrom"
-              className="form-input"
-              value={formData.validFrom}
-              onChange={handleChange}
-            />
-            {errors.validFrom && <p className="form-error">{errors.validFrom}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label className="form-label" htmlFor="validFrom">Valid From</label>
+              <input
+                type="date"
+                id="validFrom"
+                name="validFrom"
+                className="form-input"
+                value={formData.validFrom}
+                onChange={handleChange}
+                required
+              />
+              {errors.validFrom && <p className="text-xs text-red-600 mt-1 font-medium">{errors.validFrom}</p>}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="validUntil">
+                Valid Until <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                id="validUntil"
+                name="validUntil"
+                className="form-input"
+                value={formData.validUntil}
+                onChange={handleChange}
+                required
+              />
+              {errors.validUntil && <p className="text-xs text-red-600 mt-1 font-medium">{errors.validUntil}</p>}
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="validUntil">Valid Until <span style={{color: 'red'}}>*</span></label>
-            <input
-              type="date"
-              id="validUntil"
-              name="validUntil"
-              className="form-input"
-              value={formData.validUntil}
-              onChange={handleChange}
-              required
-            />
-            {errors.validUntil && <p className="form-error">{errors.validUntil}</p>}
-          </div>
-
-          <div className="card-footer" style={{ marginTop: '2rem' }}>
+          <div className="pt-4">
             <button
               type="submit"
-              className="btn btn-primary btn-lg"
-              style={{ width: '100%' }}
+              className="btn btn-primary btn-lg w-full font-bold text-base shadow-lg rounded-xl transition-all"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creating...' : 'GENERATE COUPON'}
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="loading-spinner w-5 h-5 border-2 border-black border-t-transparent inline-block rounded-full animate-spin" />
+                  GENERATING...
+                </span>
+              ) : (
+                'GENERATE COUPON'
+              )}
             </button>
           </div>
         </form>

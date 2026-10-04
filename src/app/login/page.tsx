@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { adminLoginAction } from '@/app/actions/auth';
 
 export default function LoginPage() {
-  const [usernameInput, setUsernameInput] = useState(process.env.NEXT_PUBLIC_ADMIN_USERNAME || 'Akshaya_Jewellers');
-  const [password, setPassword] = useState(process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'Akshaya@00');
+  const [usernameInput, setUsernameInput] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -48,10 +48,11 @@ export default function LoginPage() {
             <input
               id="username"
               type="text"
+              autoComplete="username"
               className="form-input"
               value={usernameInput}
               onChange={(e) => setUsernameInput(e.target.value)}
-              placeholder="Akshaya_Jewellers"
+              placeholder="Enter your admin username"
               required
             />
           </div>
@@ -60,10 +61,11 @@ export default function LoginPage() {
             <input
               id="password"
               type="password"
+              autoComplete="current-password"
               className="form-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Akshaya@00"
+              placeholder="Enter your password"
               required
             />
           </div>

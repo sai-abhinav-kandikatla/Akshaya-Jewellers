@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { getCouponByCode } from '@/app/actions/coupons';
@@ -12,7 +11,6 @@ import { generateWhatsAppURL } from '@/lib/utils/whatsapp';
 import { Coupon } from '@/lib/types';
 
 export default function CouponSuccessPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
-  const router = useRouter();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,7 +22,7 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
         const resolvedParams = await params;
         const code = resolvedParams?.code || (params as any)?.code;
         if (!code) {
-          setError('Invalid coupon code');
+          setError('Invalid coupon link');
           setIsLoading(false);
           return;
         }
@@ -48,7 +46,7 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
   const handleCopyCode = () => {
     if (coupon) {
       navigator.clipboard.writeText(coupon.coupon_code);
-      setToast({ id: Date.now(), message: 'Coupon code copied to clipboard!', type: 'success' });
+      setToast({ id: Date.now(), message: 'Copied to clipboard', type: 'success' });
       setTimeout(() => setToast(null), 3000);
     }
   };
@@ -67,103 +65,136 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
 
   if (isLoading) {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-        <div className="loading-spinner" />
-        <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Loading...</span>
+      <div className="py-16 text-center flex flex-col items-center gap-3">
+        <div className="loading-spinner w-8 h-8 border-3 border-[#d4af37] border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm text-gray-500 font-medium">Generating coupon...</span>
       </div>
     );
   }
 
   if (error || !coupon) {
-    return <div className="empty-state"><h3>{error || 'Coupon not found'}</h3></div>;
+    return <div className="empty-state py-12 text-center"><h3>{error || 'Coupon not found'}</h3></div>;
   }
 
   const verificationUrl = typeof window !== 'undefined' 
     ? `${window.location.origin}/verify/${coupon.coupon_code}` 
-    : `https://akshayajewellery.com/verify/${coupon.coupon_code}`;
+    : `https://akshaya-jewellers-mncl.vercel.app/verify/${coupon.coupon_code}`;
 
   const displayStatus = computeDisplayStatus(coupon);
 
   return (
-    <div className="success-page" style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem 1rem', textAlign: 'center' }}>
-      
+    <div className="max-w-lg mx-auto space-y-6 pb-8">
       {toast && (
-        <div className="toast-container">
-          <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+        <div className="toast-container fixed bottom-20 right-4 z-50">
+          <div className="toast bg-gray-900 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xl">
+            ✓ {toast.message}
+          </div>
         </div>
       )}
 
-      <div className="success-animation" style={{ marginBottom: '1.5rem' }}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '80px', height: '80px' }}>
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
+      {/* Success Badge */}
+      <div className="text-center pt-2">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 text-green-600 shadow-sm">
+          <svg className="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-serif font-bold text-gray-900">COUPON CREATED</h1>
+        <p className="text-xs text-gray-500 mt-0.5">Akshaya Jewellery Digital Gift Voucher</p>
       </div>
 
-      <h1 style={{ marginBottom: '2rem', color: '#166534' }}>Coupon Created Successfully!</h1>
-
-      <div className="card coupon-card" style={{ textAlign: 'left', marginBottom: '2rem' }}>
-        <div className="card-body">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-            <div>
-              <p className="stat-label">Customer</p>
-              <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{coupon.customer_name}</p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p className="stat-label">Value</p>
-              <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#b8860b' }}>
-                {formatCurrency(coupon.value)}
-              </p>
-            </div>
+      {/* Status Indicators Cards (Master Prompt Section 16-18) */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2">
+          <span className="text-base">✓</span>
+          <div>
+            <p className="text-[10px] uppercase font-bold text-green-800">WhatsApp</p>
+            <p className="text-xs font-semibold text-green-700">Automatically Sent</p>
           </div>
-
-          <div style={{ backgroundColor: '#fdfbf7', padding: '1rem', borderRadius: '8px', textAlign: 'center', marginBottom: '1.5rem', border: '1px dashed #d4af37' }}>
-            <p className="stat-label">Coupon Code</p>
-            <h2 style={{ fontSize: '2rem', letterSpacing: '2px', margin: '0.5rem 0' }}>{coupon.coupon_code}</h2>
-            <span className={`badge badge-${displayStatus.toLowerCase().replace('_', '-')}`}>
-              {displayStatus}
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div>
-              <p className="stat-label">Valid From</p>
-              <p>{formatIndianDate(coupon.valid_from)}</p>
-            </div>
-            <div>
-              <p className="stat-label">Valid Until</p>
-              <p>{formatIndianDate(coupon.valid_until)}</p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'center', margin: '2rem 0' }}>
-            <div style={{ padding: '1rem', backgroundColor: '#fff', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-              <QRCodeSVG value={verificationUrl} size={150} level="M" includeMargin={true} />
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', textAlign: 'center', marginTop: '0.5rem' }}>Scan to verify</p>
-            </div>
+        </div>
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2">
+          <span className="text-base">✓</span>
+          <div>
+            <p className="text-[10px] uppercase font-bold text-blue-800">Excel Sync</p>
+            <p className="text-xs font-semibold text-blue-700">Synced</p>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <button onClick={handleWhatsApp} className="btn btn-whatsapp" style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}>
-          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px', verticalAlign: 'middle' }}>
+      {/* Main Coupon Card */}
+      <div className="card bg-white p-5 rounded-2xl shadow-md border border-gray-200 space-y-4">
+        <div className="flex justify-between items-start border-b border-gray-100 pb-3">
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Customer</p>
+            <p className="text-lg font-bold text-gray-900">{coupon.customer_name}</p>
+            <p className="text-xs text-gray-500">{coupon.phone_number}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Value</p>
+            <p className="text-2xl font-bold text-[#b8860b]">{formatCurrency(coupon.value)}</p>
+          </div>
+        </div>
+
+        <div className="bg-[#fdfbf7] p-4 rounded-xl text-center border border-dashed border-[#d4af37]">
+          <p className="text-[10px] text-gray-500 uppercase tracking-wider">Coupon Code</p>
+          <h2 className="text-2xl font-mono font-bold tracking-wider text-gray-900 my-1">{coupon.coupon_code}</h2>
+          <span className={`badge badge-${displayStatus.toLowerCase().replace('_', '-')}`}>
+            {displayStatus}
+          </span>
+        </div>
+
+        <div className="flex justify-between items-center text-xs text-gray-600 pt-1">
+          <div>
+            <span className="text-gray-400 block text-[10px] uppercase">Valid From</span>
+            <span className="font-semibold text-gray-800">{formatIndianDate(coupon.valid_from)}</span>
+          </div>
+          <div className="text-right">
+            <span className="text-gray-400 block text-[10px] uppercase">Valid Until</span>
+            <span className="font-semibold text-gray-800">{formatIndianDate(coupon.valid_until)}</span>
+          </div>
+        </div>
+
+        {/* Prominent QR Code */}
+        <div className="pt-2 text-center">
+          <div className="inline-block p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+            <QRCodeSVG value={verificationUrl} size={150} level="M" />
+            <p className="text-[10px] text-gray-400 mt-2 font-medium">Scan for public verification</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Primary Actions (Master Prompt Section 16) */}
+      <div className="space-y-3">
+        <button
+          onClick={handleWhatsApp}
+          className="btn btn-whatsapp btn-lg w-full font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
+        >
+          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
           </svg>
-          SEND ON WHATSAPP
+          RESEND ON WHATSAPP
         </button>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <Link href={`/dashboard/coupons/${coupon.coupon_code}`} className="btn btn-secondary" style={{ textAlign: 'center' }}>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href={`/dashboard/coupons/${coupon.coupon_code}`}
+            className="btn btn-secondary text-center text-sm py-3 font-semibold rounded-xl"
+          >
             VIEW COUPON
           </Link>
-          <button onClick={handleCopyCode} className="btn btn-ghost">
+          <button
+            onClick={handleCopyCode}
+            className="btn btn-ghost text-center text-sm py-3 border border-gray-300 rounded-xl"
+          >
             COPY CODE
           </button>
         </div>
-        
-        <Link href="/dashboard/coupons/create" className="btn btn-secondary" style={{ marginTop: '0.5rem', textAlign: 'center' }}>
-          CREATE ANOTHER
+
+        <Link
+          href="/dashboard/coupons/create"
+          className="btn btn-primary w-full py-3 text-center text-sm font-bold rounded-xl"
+        >
+          + CREATE ANOTHER
         </Link>
       </div>
     </div>

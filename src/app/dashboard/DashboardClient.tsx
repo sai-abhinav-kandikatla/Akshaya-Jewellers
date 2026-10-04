@@ -1,23 +1,66 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState, useEffect, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils/formatters';
-import { computeDisplayStatus, getStatusColor, getStatusLabel } from '@/lib/utils/statusCompute';
+import { computeDisplayStatus, getStatusLabel } from '@/lib/utils/statusCompute';
+import { getDashboardStats } from '@/app/actions/dashboard';
 
 export default function DashboardClient({ initialStats, recentCoupons, campaigns }: any) {
   const [selectedCampaign, setSelectedCampaign] = useState('all');
+  const [stats, setStats] = useState(initialStats);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [greeting, setGreeting] = useState('Good Morning');
+  const campaignRequestId = useRef(0);
 
-  // In a real app, we'd fetch new stats based on the selected campaign
-  const stats = initialStats;
+  useEffect(() => {
+    // Determine greeting in IST timezone
+    const hourStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit' });
+    const hour = parseInt(hourStr, 10);
+    if (hour >= 5 && hour < 12) setGreeting('Good Morning');
+    else if (hour >= 12 && hour < 17) setGreeting('Good Afternoon');
+    else setGreeting('Good Evening');
+  }, []);
+
+  const handleCampaignChange = async (event: ChangeEvent<HTMLSelectElement>) => {
+    const campaignId = event.target.value;
+    const requestId = ++campaignRequestId.current;
+    setSelectedCampaign(campaignId);
+
+    if (campaignId === 'all') {
+      setStats(initialStats);
+      setStatsLoading(false);
+      return;
+    }
+
+    setStatsLoading(true);
+    try {
+      const nextStats = await getDashboardStats(campaignId);
+      if (requestId === campaignRequestId.current) setStats(nextStats);
+    } catch (error) {
+      console.error('Failed to load campaign stats', error);
+    } finally {
+      if (requestId === campaignRequestId.current) setStatsLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-8">
-      <div className="filter-bar flex justify-end">
+    <div className="space-y-6">
+      {/* Top Greeting & Campaign Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#3E2723]">
+            {greeting}, Admin 👋
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+            Akshaya Jewellery Digital Gift Coupon System
+          </p>
+        </div>
         <select 
-          className="form-input max-w-xs bg-white border border-gray-300 rounded-md py-2 px-3 shadow-sm focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37]"
+          className="form-input max-w-xs text-sm py-2 px-3 bg-white border border-gray-300 rounded-xl"
           value={selectedCampaign}
-          onChange={(e) => setSelectedCampaign(e.target.value)}
+          onChange={handleCampaignChange}
+          aria-label="Filter dashboard by campaign"
         >
           <option value="all">All Campaigns</option>
           {campaigns?.map((c: any) => (
@@ -26,84 +69,92 @@ export default function DashboardClient({ initialStats, recentCoupons, campaigns
         </select>
       </div>
 
-      <div className="stats-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Coupons" value={stats?.total || 0} icon={<path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />} color="border-[#3E2723]" textColor="text-[#3E2723]" />
-        <StatCard title="Active" value={stats?.active || 0} icon={<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />} color="border-green-500" textColor="text-green-600" />
-        <StatCard title="Not Active" value={stats?.not_active || 0} icon={<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />} color="border-amber-500" textColor="text-amber-600" />
-        <StatCard title="Claimed" value={stats?.claimed || 0} icon={<path d="M5 13l4 4L19 7" />} color="border-blue-500" textColor="text-blue-600" />
-        <StatCard title="Expired" value={stats?.expired || 0} icon={<path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />} color="border-red-500" textColor="text-red-600" />
-        <StatCard title="Cancelled" value={stats?.cancelled || 0} icon={<path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />} color="border-gray-500" textColor="text-gray-600" />
-        <StatCard title="Total Value" value={formatCurrency(stats?.totalValue || 0)} icon={<path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />} color="border-[#D4AF37]" textColor="text-[#D4AF37]" />
-        <StatCard title="Claimed Value" value={formatCurrency(stats?.claimedValue || 0)} icon={<path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />} color="border-blue-500" textColor="text-blue-600" />
+      {/* Primary CTA (Master Prompt Section 9) */}
+      <div className="w-full">
+        <Link 
+          href="/dashboard/coupons/create"
+          className="btn btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 rounded-2xl shadow-md hover:shadow-lg transition-all"
+        >
+          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+            <path d="M12 4v16m8-8H4" />
+          </svg>
+          <span>+ CREATE COUPON</span>
+        </Link>
       </div>
 
-      <div className="card mt-8 bg-white rounded-lg shadow overflow-hidden">
-        <div className="card-header px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-gray-800">Recent Coupons</h2>
-          <Link href="/dashboard/coupons" className="text-sm font-medium text-[#D4AF37] hover:text-[#b8952b]">
+      {/* Featured Total Coupons Card */}
+      <div className="card bg-[#3E2723] text-white p-5 rounded-2xl shadow-md flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-gray-300 font-semibold">Total Coupons Created</p>
+          <p className="text-3xl sm:text-4xl font-serif font-bold text-[#D4AF37] mt-1">
+            {new Intl.NumberFormat('en-IN').format(stats?.total_count || 0)}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-gray-300">Total Value</p>
+          <p className="text-lg font-bold text-white">{formatCurrency(stats?.total_value || 0)}</p>
+        </div>
+      </div>
+
+      {/* Compact 2-Column Mobile Metric Grid (Master Prompt Section 8) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3" aria-busy={statsLoading}>
+        <CompactStatCard title="ACTIVE" count={stats?.active_count || 0} color="border-l-4 border-green-500 bg-green-50/40" textColor="text-green-700" />
+        <CompactStatCard title="NOT ACTIVE" count={stats?.not_active_count || 0} color="border-l-4 border-amber-500 bg-amber-50/40" textColor="text-amber-700" />
+        <CompactStatCard title="CLAIMED" count={stats?.claimed_count || 0} value={formatCurrency(stats?.claimed_value || 0)} color="border-l-4 border-blue-500 bg-blue-50/40" textColor="text-blue-700" />
+        <CompactStatCard title="EXPIRED" count={stats?.expired_count || 0} color="border-l-4 border-red-500 bg-red-50/40" textColor="text-red-700" />
+        <CompactStatCard title="CANCELLED" count={stats?.cancelled_count || 0} color="border-l-4 border-gray-400 bg-gray-50" textColor="text-gray-700" />
+        <CompactStatCard title="CLAIMED VALUE" count={formatCurrency(stats?.claimed_value || 0)} color="border-l-4 border-[#D4AF37] bg-gold-50/40" textColor="text-[#b8860b]" isValueOnly />
+      </div>
+
+      {/* Recent Coupons List */}
+      <div className="card bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+          <h2 className="text-base font-bold text-gray-900">Recent Coupons</h2>
+          <Link href="/dashboard/coupons" className="text-xs font-semibold text-[#b8860b] hover:underline">
             View All →
           </Link>
         </div>
-        <div className="card-body p-0">
-          <div className="overflow-x-auto">
-            <table className="data-table w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                  <th className="py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th className="py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                  <th className="py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {recentCoupons?.length > 0 ? recentCoupons.map((coupon: any) => {
-                  const status = computeDisplayStatus(coupon);
-                  return (
-                    <tr key={coupon.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-4 px-6 text-sm font-medium text-gray-900">
-                        <Link href={`/dashboard/coupons/${coupon.code}`} className="text-[#3E2723] hover:underline">
-                          {coupon.code}
-                        </Link>
-                      </td>
-                      <td className="py-4 px-6 text-sm text-gray-500">{coupon.customer_name || '-'}</td>
-                      <td className="py-4 px-6 text-sm text-gray-900 font-medium">{formatCurrency(coupon.value)}</td>
-                      <td className="py-4 px-6 text-sm">
-                        <span className={`badge badge-${status.replace('_', '-')} px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(status)}`}>
-                          {getStatusLabel(status)}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                }) : (
-                  <tr>
-                    <td colSpan={4} className="py-8 px-6 text-center text-gray-500 text-sm">No recent coupons found</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+
+        <div className="p-4 space-y-2">
+          {recentCoupons?.length > 0 ? (
+            recentCoupons.map((coupon: any) => {
+              const status = computeDisplayStatus(coupon);
+              return (
+                <Link
+                  key={coupon.id}
+                  href={`/dashboard/coupons/${coupon.coupon_code}`}
+                  className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100"
+                >
+                  <div>
+                    <span className="font-bold text-[#b8860b] text-sm block">{coupon.coupon_code}</span>
+                    <span className="text-xs font-medium text-gray-800">{coupon.customer_name || 'Valued Customer'}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-gray-900 text-sm block">{formatCurrency(coupon.value)}</span>
+                    <span className={`badge badge-${status.toLowerCase().replace('_', '-')} text-[10px] py-0.5 px-2`}>
+                      {getStatusLabel(status)}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })
+          ) : (
+            <p className="text-xs text-gray-500 text-center py-4">No coupons created yet.</p>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function StatCard({ title, value, icon, color, textColor }: any) {
+function CompactStatCard({ title, count, value, color, textColor, isValueOnly }: any) {
   return (
-    <div className={`stat-card bg-white rounded-lg shadow p-6 border-l-4 ${color}`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="stat-label text-sm font-medium text-gray-500 mb-1">{title}</p>
-          <p className="stat-value text-2xl font-bold text-gray-900">
-            {typeof value === 'number' ? new Intl.NumberFormat('en-IN').format(value) : value}
-          </p>
-        </div>
-        <div className={`p-3 rounded-full bg-opacity-10 bg-current ${textColor}`}>
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            {icon}
-          </svg>
-        </div>
-      </div>
+    <div className={`p-3.5 rounded-xl border border-gray-200 shadow-sm ${color}`}>
+      <p className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">{title}</p>
+      <p className={`text-xl sm:text-2xl font-bold mt-1 ${textColor}`}>
+        {isValueOnly ? count : (typeof count === 'number' ? new Intl.NumberFormat('en-IN').format(count) : count)}
+      </p>
+      {value && <p className="text-[11px] font-semibold text-gray-600 mt-0.5">{value}</p>}
     </div>
   );
 }

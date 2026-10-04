@@ -55,9 +55,9 @@ export default function CouponsListPage() {
       const filters = {
         search: debouncedSearch,
         status: filterStatus !== 'ALL' ? filterStatus.replace(' ', '_') : undefined,
-        campaignId: campaignFilter || undefined,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
+        campaign_id: campaignFilter || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
         page,
         limit: ITEMS_PER_PAGE
       };
@@ -104,7 +104,7 @@ export default function CouponsListPage() {
   };
 
   return (
-    <div className="dashboard-layout">
+    <div className="dashboard-page">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1>All Coupons</h1>
@@ -304,7 +304,7 @@ export default function CouponsListPage() {
           </div>
 
           {/* Pagination */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem' }}>
+          <div className="coupon-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem' }}>
             <p className="text-muted" style={{ fontSize: '0.875rem' }}>
               Showing {((page - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(page * ITEMS_PER_PAGE, totalCount)} of {totalCount} entries
             </p>

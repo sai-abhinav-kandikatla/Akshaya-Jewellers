@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import { verifyAdminSessionToken } from '@/lib/auth/adminSession';
 import DashboardShell from './DashboardShell';
 
 export default async function DashboardLayout({
@@ -12,8 +13,9 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser();
   const cookieStore = await cookies();
   const adminCookie = cookieStore.get('akshaya_admin_session');
+  const hasAdminSession = await verifyAdminSessionToken(adminCookie?.value);
 
-  if (!user && !adminCookie) {
+  if (!user && !hasAdminSession) {
     redirect('/login');
   }
 

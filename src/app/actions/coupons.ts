@@ -118,16 +118,17 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
       query = query.or(`coupon_code.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,phone_number.ilike.%${filters.search}%`);
     }
 
-    if (filters.campaign_id) {
-      query = query.eq('campaign_id', filters.campaign_id);
+    const campaignId = filters.campaign_id || filters.campaignId;
+    if (campaignId) {
+      query = query.eq('campaign_id', campaignId);
     }
 
     if (filters.date_from) {
-      query = query.gte('created_at', filters.date_from);
+      query = query.gte('valid_from', filters.date_from);
     }
 
     if (filters.date_to) {
-      query = query.lte('created_at', filters.date_to);
+      query = query.lte('valid_until', filters.date_to);
     }
 
     if (filters.status && filters.status !== 'ALL') {
@@ -227,6 +228,10 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
 
     if (currentDisplayStatus === 'EXPIRED') {
       return { success: false, error: 'This coupon has expired and cannot be redeemed.' };
+    }
+
+    if (currentDisplayStatus === 'NOT_ACTIVE') {
+      return { success: false, error: 'This coupon is not active yet and cannot be redeemed.' };
     }
 
     if (currentDisplayStatus === 'CANCELLED') {

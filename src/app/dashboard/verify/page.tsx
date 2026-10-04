@@ -63,11 +63,20 @@ export default function VerifyCouponPage() {
     
     setIsClaiming(true);
     try {
-      await claimCoupon(coupon.id);
-      showToast('Coupon claimed successfully!', 'success');
+      const result = await claimCoupon(coupon.id);
+      if (!result.success) {
+        showToast(result.error || result.message || 'Failed to claim coupon.', 'error');
+        return;
+      }
+
       // Refresh coupon data
       const updated = await getCouponByCode(coupon.coupon_code);
-      if (updated) setCoupon(updated);
+      if (updated) {
+        setCoupon(updated);
+        showToast('Coupon claimed successfully!', 'success');
+      } else {
+        showToast('Coupon was claimed, but its status could not be refreshed. Verify it again.', 'error');
+      }
     } catch (err: any) {
       showToast(err.message || 'Failed to claim coupon', 'error');
     } finally {
@@ -88,10 +97,10 @@ export default function VerifyCouponPage() {
   };
 
   return (
-    <div className="dashboard-layout verify-page" style={{ maxWidth: '800px', margin: '0 auto' }}>
+    <div className="dashboard-page verify-page">
       {toast && (
         <div className="toast-container">
-          <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+          <div role={toast.type === 'error' ? 'alert' : 'status'} className={`toast toast-${toast.type}`}>{toast.message}</div>
         </div>
       )}
 
@@ -106,7 +115,7 @@ export default function VerifyCouponPage() {
               <p>Are you sure you want to claim this coupon?</p>
               <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>This will mark the coupon as used and cannot be undone.</p>
             </div>
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <div className="modal-footer verify-modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
               <button className="btn btn-ghost" onClick={() => setModalOpen(false)} disabled={isClaiming}>
                 Cancel
               </button>
@@ -118,35 +127,28 @@ export default function VerifyCouponPage() {
         </div>
       )}
 
-      <div className="page-header" style={{ textAlign: 'center', marginBottom: '2rem' }}>
+      <div className="page-header verify-page-header" style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2rem' }}>Verify Gift Coupon</h1>
         <p className="text-muted" style={{ marginTop: '0.5rem' }}>Enter a coupon code to check its validity and status.</p>
       </div>
 
-      <div className="card" style={{ padding: '2rem', marginBottom: '2rem', background: '#fdfbf7', border: '1px solid #f3e8c9' }}>
-        <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+      <div className="card verify-search-card">
+        <form onSubmit={handleVerify} className="verify-form">
+          <label className="sr-only" htmlFor="verifyCouponCode">Coupon code</label>
           <input
             type="text"
-            className="verify-input form-input"
+            id="verifyCouponCode"
+            className="verify-input verify-code-input form-input"
             value={code}
             onChange={handleInputChange}
             placeholder="Enter Coupon Code (e.g., AKS-1234)"
-            style={{ 
-              fontSize: '1.5rem', 
-              padding: '1rem', 
-              textAlign: 'center', 
-              letterSpacing: '2px',
-              maxWidth: '400px',
-              border: '2px solid #d4af37',
-              borderRadius: '8px',
-              textTransform: 'uppercase'
-            }}
-            autoFocus
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
           />
           <button 
             type="submit" 
-            className="btn btn-primary btn-lg" 
-            style={{ maxWidth: '400px', width: '100%' }}
+            className="btn btn-primary btn-lg verify-submit"
             disabled={isLoading || !code.trim()}
           >
             {isLoading ? 'VERIFYING...' : 'VERIFY COUPON'}
@@ -155,14 +157,14 @@ export default function VerifyCouponPage() {
       </div>
 
       {isLoading && (
-        <div style={{ textAlign: 'center', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+        <div role="status" style={{ textAlign: 'center', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
           <div className="loading-spinner" />
           <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Checking...</span>
         </div>
       )}
 
       {error && !isLoading && (
-        <div className="empty-state" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '2rem', textAlign: 'center' }}>
+        <div role="alert" className="empty-state" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '2rem', textAlign: 'center' }}>
           <svg viewBox="0 0 24 24" width="48" height="48" stroke="#ef4444" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 1rem' }}>
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
@@ -173,7 +175,7 @@ export default function VerifyCouponPage() {
       )}
 
       {coupon && !isLoading && (
-        <div className="card result-card" style={{ padding: '2rem', borderTop: '4px solid #d4af37' }}>
+        <div className="card result-card verify-result-card" style={{ padding: '2rem', borderTop: '4px solid #d4af37' }}>
           {(() => {
             const status = computeDisplayStatus(coupon);
             return (
@@ -187,7 +189,7 @@ export default function VerifyCouponPage() {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                <div className="verify-result-grid">
                   <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px' }}>
                     <p className="stat-label">Customer Name</p>
                     <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{coupon.customer_name}</p>
