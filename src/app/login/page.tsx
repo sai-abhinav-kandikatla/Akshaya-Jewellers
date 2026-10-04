@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { adminLoginAction } from '@/app/actions/auth';
 
 export default function LoginPage() {
@@ -37,12 +36,7 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="flex-center mb-4">
-          <div className="login-logo">
-            <Image src="/logo.png" alt="Akshaya Jewellers Logo" width={80} height={80} priority />
-          </div>
-        </div>
-        <h1 className="login-title text-center">Akshaya Jewellers</h1>
+        <h1 className="login-title text-center mb-1">Akshaya Jewellers</h1>
         <p className="text-muted text-center mb-6">Admin Gift Coupon Management System</p>
 
         <form onSubmit={handleLogin}>
