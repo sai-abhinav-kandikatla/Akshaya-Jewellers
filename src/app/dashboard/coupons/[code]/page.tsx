@@ -71,11 +71,19 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
     setIsProcessing(true);
     try {
       if (modalState.type === 'CLAIM') {
-        await claimCoupon(coupon.id);
-        showToast('Coupon claimed successfully!', 'success');
+        const res = await claimCoupon(coupon.id);
+        if (res.success) {
+          showToast('Coupon redeemed successfully!', 'success');
+        } else {
+          showToast(res.error || 'Failed to redeem coupon', 'error');
+        }
       } else if (modalState.type === 'CANCEL') {
-        await cancelCoupon(coupon.id);
-        showToast('Coupon cancelled successfully!', 'success');
+        const res = await cancelCoupon(coupon.id);
+        if (res.success) {
+          showToast('Coupon cancelled successfully!', 'success');
+        } else {
+          showToast(res.error || 'Failed to cancel coupon', 'error');
+        }
       }
       await loadData();
     } catch (err: any) {

@@ -141,11 +141,16 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
       return { coupons: [], total: 0 };
     }
 
-    const couponsWithStatus: CouponWithDisplayStatus[] = (data || []).map((c: any) => ({
-      ...c,
-      campaign_name: c.campaigns?.name,
-      display_status: computeDisplayStatus(c.status, c.valid_from, c.valid_until)
-    }));
+    const couponsWithStatus: CouponWithDisplayStatus[] = (data || []).map((c: any) => {
+      const val = Number(c.coupon_value ?? c.value ?? 0);
+      return {
+        ...c,
+        value: val,
+        coupon_value: val,
+        campaign_name: c.campaigns?.name,
+        display_status: computeDisplayStatus(c.status, c.valid_from, c.valid_until)
+      };
+    });
 
     return { coupons: couponsWithStatus, total: count || 0 };
   } catch (error) {
@@ -160,15 +165,18 @@ export async function getCouponByCode(code: string): Promise<CouponWithDisplaySt
     const { data, error } = await supabase
       .from('coupons')
       .select('*, campaigns(name)')
-      .eq('coupon_code', code)
+      .or(`coupon_code.eq.${code},id.eq.${code}`)
       .single();
 
     if (error || !data) {
       return null;
     }
 
+    const val = Number(data.coupon_value ?? data.value ?? 0);
     return {
       ...data,
+      value: val,
+      coupon_value: val,
       campaign_name: data.campaigns?.name,
       display_status: computeDisplayStatus(data.status, data.valid_from, data.valid_until)
     };
@@ -178,49 +186,93 @@ export async function getCouponByCode(code: string): Promise<CouponWithDisplaySt
   }
 }
 
-export async function claimCoupon(couponCode: string): Promise<ApiResponse> {
+export async function claimCoupon(identifier: string): Promise<ApiResponse> {
   try {
     const supabase = createAdminClient();
-    const { error } = await supabase.rpc('claim_coupon', { p_coupon_code: couponCode });
+    
+    // Find coupon by code or ID
+    const { data: coupon, error: findError } = await supabase
+      .from('coupons')
+      .select('*')
+      .or(`coupon_code.eq.${identifier},id.eq.${identifier}`)
+      .single();
 
-    if (error) {
-      console.warn('claimCoupon RPC failed, executing direct update fallback:', error);
-      const { data: updated, error: updateError } = await supabase
-        .from('coupons')
-        .update({ status: 'CLAIMED', claimed_at: new Date().toISOString() })
-        .eq('coupon_code', couponCode)
-        .select()
-        .single();
-
-      if (updateError || !updated) {
-        return { success: false, error: updateError?.message || error.message || 'Failed to claim coupon.' };
-      }
+    if (findError || !coupon) {
+      console.error('claimCoupon find error:', findError);
+      return { success: false, error: 'Coupon not found.' };
     }
 
-    return { success: true, message: 'Coupon claimed successfully.' };
+    const currentDisplayStatus = computeDisplayStatus(coupon.status, coupon.valid_from, coupon.valid_until);
+
+    if (currentDisplayStatus === 'CLAIMED' || coupon.status === 'CLAIMED') {
+      return { success: false, error: 'This coupon has already been redeemed and cannot be used again.' };
+    }
+
+    if (currentDisplayStatus === 'EXPIRED') {
+      return { success: false, error: 'This coupon has expired and cannot be redeemed.' };
+    }
+
+    if (currentDisplayStatus === 'CANCELLED') {
+      return { success: false, error: 'This coupon has been cancelled and cannot be redeemed.' };
+    }
+
+    // Try RPC claim_coupon first
+    const { error: rpcError } = await supabase.rpc('claim_coupon', { p_coupon_code: coupon.coupon_code });
+    if (!rpcError) {
+      return { success: true, message: 'Coupon redeemed successfully.' };
+    }
+
+    // Direct table update fallback
+    const { data: updated, error: updateError } = await supabase
+      .from('coupons')
+      .update({ status: 'CLAIMED', claimed_at: new Date().toISOString() })
+      .eq('id', coupon.id)
+      .select()
+      .single();
+
+    if (updateError || !updated) {
+      return { success: false, error: updateError?.message || rpcError?.message || 'Failed to claim coupon.' };
+    }
+
+    return { success: true, message: 'Coupon redeemed successfully.' };
   } catch (error: any) {
     console.error('claimCoupon exception:', error);
     return { success: false, error: error?.message || 'An unexpected error occurred while claiming the coupon.' };
   }
 }
 
-export async function cancelCoupon(couponCode: string, reason?: string): Promise<ApiResponse> {
+export async function cancelCoupon(identifier: string, reason?: string): Promise<ApiResponse> {
   try {
     const supabase = createAdminClient();
-    const { error } = await supabase.rpc('cancel_coupon', { p_coupon_code: couponCode, p_reason: reason });
+    
+    const { data: coupon, error: findError } = await supabase
+      .from('coupons')
+      .select('*')
+      .or(`coupon_code.eq.${identifier},id.eq.${identifier}`)
+      .single();
 
-    if (error) {
-      console.warn('cancelCoupon RPC failed, executing direct update fallback:', error);
-      const { data: updated, error: updateError } = await supabase
-        .from('coupons')
-        .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString() })
-        .eq('coupon_code', couponCode)
-        .select()
-        .single();
+    if (findError || !coupon) {
+      return { success: false, error: 'Coupon not found.' };
+    }
 
-      if (updateError || !updated) {
-        return { success: false, error: updateError?.message || error.message || 'Failed to cancel coupon.' };
-      }
+    if (coupon.status === 'CLAIMED') {
+      return { success: false, error: 'Cannot cancel a claimed/redeemed coupon.' };
+    }
+
+    const { error: rpcError } = await supabase.rpc('cancel_coupon', { p_coupon_code: coupon.coupon_code, p_reason: reason });
+    if (!rpcError) {
+      return { success: true, message: 'Coupon cancelled successfully.' };
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('coupons')
+      .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString() })
+      .eq('id', coupon.id)
+      .select()
+      .single();
+
+    if (updateError || !updated) {
+      return { success: false, error: updateError?.message || rpcError?.message || 'Failed to cancel coupon.' };
     }
 
     return { success: true, message: 'Coupon cancelled successfully.' };
@@ -236,15 +288,18 @@ export async function getCouponForVerification(code: string): Promise<CouponWith
     const { data, error } = await supabase
       .from('coupons')
       .select('*, campaigns(name)')
-      .eq('coupon_code', code)
+      .or(`coupon_code.eq.${code},id.eq.${code}`)
       .single();
 
     if (error || !data) {
       return null;
     }
 
+    const val = Number(data.coupon_value ?? data.value ?? 0);
     return {
       ...data,
+      value: val,
+      coupon_value: val,
       campaign_name: data.campaigns?.name,
       display_status: computeDisplayStatus(data.status, data.valid_from, data.valid_until)
     };
