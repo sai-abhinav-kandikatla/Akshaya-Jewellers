@@ -36,6 +36,9 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
+        <div className="flex justify-center mb-3">
+          <img src="/logo.png" alt="Akshaya Jewellers Logo" className="w-16 h-16 rounded-full object-cover border-2 border-[#D4AF37] shadow-md" />
+        </div>
         <h1 className="login-title text-center mb-1">Akshaya Jewellers</h1>
         <p className="text-muted text-center mb-6">Admin Gift Coupon Management System</p>
 

@@ -33,8 +33,9 @@ export default function DashboardShell({
       {/* Mobile Top Navigation Header */}
       <header className="md:hidden sticky top-0 z-50 bg-[#3E2723] text-white shadow-lg border-b border-[#5D4037]">
         <div className="px-4 py-3 flex items-center justify-between">
-          <Link href="/dashboard" className="text-lg font-serif font-bold text-[#D4AF37]">
-            Akshaya Jewellers
+          <Link href="/dashboard" className="flex items-center gap-2 text-lg font-serif font-bold text-[#D4AF37]">
+            <img src="/logo.png" alt="Akshaya Jewellers Logo" className="w-8 h-8 rounded-full object-cover border border-[#D4AF37]" />
+            <span>Akshaya Jewellers</span>
           </Link>
           <button 
             onClick={handleLogout} 
@@ -75,6 +76,7 @@ export default function DashboardShell({
         {/* Desktop Sidebar */}
         <aside className="sidebar hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[260px] bg-[#3E2723] text-white z-40">
           <div className="p-6 flex flex-col items-center border-b border-[#5D4037]">
+            <img src="/logo.png" alt="Akshaya Jewellers Logo" className="w-12 h-12 rounded-full object-cover mb-2 border border-[#D4AF37] shadow-md" />
             <h1 className="text-xl font-semibold text-[#D4AF37] text-center">Akshaya Jewellers</h1>
           </div>
           <nav className="sidebar-nav flex-1 overflow-y-auto py-4">

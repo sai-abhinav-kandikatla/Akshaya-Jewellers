@@ -53,8 +53,9 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
       <div className="card" style={{ maxWidth: '450px', width: '100%', overflow: 'hidden', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}>
         
         {/* Brand Header */}
-        <div style={{ backgroundColor: '#1a1a1a', padding: '2rem', textAlign: 'center', color: '#d4af37' }}>
-          <h1 style={{ fontSize: '1.5rem', letterSpacing: '2px', margin: 0, textTransform: 'uppercase' }}>Akshaya Jewellers</h1>
+        <div style={{ backgroundColor: '#1a1a1a', padding: '1.75rem 1.5rem', textAlign: 'center', color: '#d4af37', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <img src="/logo.png" alt="Akshaya Jewellers Logo" className="w-14 h-14 rounded-full object-cover mb-2 border border-[#D4AF37]" />
+          <h1 style={{ fontSize: '1.4rem', letterSpacing: '2px', margin: 0, textTransform: 'uppercase' }}>Akshaya Jewellers</h1>
           <p style={{ fontSize: '0.875rem', letterSpacing: '1px', opacity: 0.8, marginTop: '0.25rem' }}>Digital Gift Coupon</p>
         </div>
 
