@@ -11,7 +11,7 @@ import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { generateWhatsAppURL } from '@/lib/utils/whatsapp';
 import { Coupon } from '@/lib/types';
 
-export default function CouponSuccessPage({ params }: { params: { code: string } }) {
+export default function CouponSuccessPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
   const router = useRouter();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,7 +21,15 @@ export default function CouponSuccessPage({ params }: { params: { code: string }
   useEffect(() => {
     async function fetchCoupon() {
       try {
-        const data = await getCouponByCode(params.code);
+        const resolvedParams = await params;
+        const code = resolvedParams?.code || (params as any)?.code;
+        if (!code) {
+          setError('Invalid coupon code');
+          setIsLoading(false);
+          return;
+        }
+
+        const data = await getCouponByCode(code);
         if (data) {
           setCoupon(data);
         } else {
@@ -34,10 +42,7 @@ export default function CouponSuccessPage({ params }: { params: { code: string }
       }
     }
     
-    // Check if params exists
-    if (params && params.code) {
-      fetchCoupon();
-    }
+    fetchCoupon();
   }, [params]);
 
   const handleCopyCode = () => {

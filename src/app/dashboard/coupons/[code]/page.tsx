@@ -11,7 +11,7 @@ import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { generateWhatsAppURL } from '@/lib/utils/whatsapp';
 import { Coupon, AuditEvent, Campaign } from '@/lib/types';
 
-export default function CouponDetailPage({ params }: { params: { code: string } }) {
+export default function CouponDetailPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
   const router = useRouter();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
   const [auditHistory, setAuditHistory] = useState<AuditEvent[]>([]);
@@ -27,7 +27,15 @@ export default function CouponDetailPage({ params }: { params: { code: string } 
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const data = await getCouponByCode(params.code);
+      const resolvedParams = await params;
+      const code = resolvedParams?.code || (params as any)?.code;
+      if (!code) {
+        setError('Invalid coupon code link');
+        setIsLoading(false);
+        return;
+      }
+
+      const data = await getCouponByCode(code);
       if (data) {
         setCoupon(data);
         const history = await getCouponAuditHistory(data.id);
@@ -49,9 +57,7 @@ export default function CouponDetailPage({ params }: { params: { code: string } 
   };
 
   useEffect(() => {
-    if (params && params.code) {
-      loadData();
-    }
+    loadData();
   }, [params]);
 
   const showToast = (message: string, type: 'success' | 'error') => {

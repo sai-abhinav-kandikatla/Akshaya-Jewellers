@@ -7,9 +7,10 @@ import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { Coupon } from '@/lib/types';
 
 // This is a Server Component. It can directly fetch from DB using server client.
-export default async function PublicVerifyPage({ params }: { params: { code: string } }) {
+export default async function PublicVerifyPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
   const supabase = await createClient();
-  const code = params.code;
+  const resolvedParams = await params;
+  const code = resolvedParams.code;
   
   // RLS must allow anon SELECT for coupons table for this to work
   const { data: coupon, error } = await supabase
