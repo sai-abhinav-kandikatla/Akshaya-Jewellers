@@ -416,6 +416,31 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
   object-fit: cover;
 }
 
+.mobile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mobile-settings-link {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f3eee9;
+  background: #4e342e;
+  border: 1px solid #8d6e63;
+  border-radius: 50%;
+}
+
+.mobile-settings-link svg,
+.mobile-logout svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
 .mobile-logout {
   min-height: 44px;
   flex: 0 0 auto;
@@ -476,7 +501,8 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
 .mobile-primary-action:hover { filter: brightness(1.08); }
 .mobile-primary-action:active { transform: scale(0.98); }
 .mobile-primary-action:focus-visible,
-.mobile-logout:focus-visible {
+.mobile-logout:focus-visible,
+.mobile-settings-link:focus-visible {
   outline: 3px solid #f5e7a8;
   outline-offset: 2px;
 }
@@ -729,6 +755,10 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
     min-width: 0;
     width: 100%;
   }
+}
+
+@media (max-width: 360px) {
+  .mobile-brand-name { display: none; }
 }
 
 /* Mobile Coupon Cards */

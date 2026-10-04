@@ -180,7 +180,7 @@ export default function SettingsPage() {
                 <span className="text-xl">🟢</span>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Excel Cloud Workbook Sync</p>
-                  <p className="text-xs text-gray-500">Microsoft Reporting Layer</p>
+                  <p className="text-xs text-gray-500">Microsoft Account: <strong>abhinav959800@gmail.com</strong></p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
