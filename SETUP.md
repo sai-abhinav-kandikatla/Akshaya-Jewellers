@@ -1,4 +1,4 @@
-# Akshaya Jewellery — Setup Guide
+# Akshaya Jewellers — Setup Guide
 
 ## Prerequisites
 
@@ -48,7 +48,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 
 ## Step 4: Add Your Logo
 
-1. Place your Akshaya Jewellery logo image in `public/logo.png`
+1. Place your Akshaya Jewellers logo image in `public/logo.png`
 2. The application references this file throughout
 
 ---

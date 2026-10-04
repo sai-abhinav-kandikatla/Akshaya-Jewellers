@@ -56,10 +56,10 @@ export default function LoginPage() {
       <div className="login-card">
         <div className="flex-center mb-4">
           <div className="login-logo">
-            <Image src="/logo.png" alt="Akshaya Jewellery Logo" width={80} height={80} priority />
+            <Image src="/logo.png" alt="Akshaya Jewellers Logo" width={80} height={80} priority />
           </div>
         </div>
-        <h1 className="login-title text-center">Akshaya Jewellery</h1>
+        <h1 className="login-title text-center">Akshaya Jewellers</h1>
         <p className="text-muted text-center mb-4">Gift Coupon Management System</p>
 
         <form onSubmit={handleAuth}>

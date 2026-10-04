@@ -1,5 +1,5 @@
 // ==============================================================================
-// AKSHAYA JEWELLERY — Type Definitions
+// AKSHAYA JEWELLERS — Type Definitions
 // ==============================================================================
 
 export type CouponStatus = 'NOT_ACTIVE' | 'ACTIVE' | 'CLAIMED' | 'EXPIRED' | 'CANCELLED';

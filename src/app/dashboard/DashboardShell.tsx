@@ -37,8 +37,8 @@ export default function DashboardShell({
       {/* Desktop Sidebar */}
       <aside className="sidebar hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[260px] bg-[#3E2723] text-white">
         <div className="p-6 flex flex-col items-center border-b border-[#5D4037]">
-          <img src="/logo.png" alt="Akshaya Jewellery" className="w-16 h-16 object-contain mb-2" />
-          <h1 className="text-xl font-semibold text-[#D4AF37]">Akshaya Jewellery</h1>
+          <img src="/logo.png" alt="Akshaya Jewellers" className="w-16 h-16 object-contain mb-2" />
+          <h1 className="text-xl font-semibold text-[#D4AF37]">Akshaya Jewellers</h1>
         </div>
         <nav className="sidebar-nav flex-1 overflow-y-auto py-4">
           {navItems.map((item) => {

@@ -1,5 +1,5 @@
 -- ==============================================================================
--- AKSHAYA JEWELLERY — SUPABASE DATABASE SCHEMA & RPC FUNCTIONS
+-- AKSHAYA JEWELLERS — SUPABASE DATABASE SCHEMA & RPC FUNCTIONS
 -- Run this in the Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql)
 -- ==============================================================================
 

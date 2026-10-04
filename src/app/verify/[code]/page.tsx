@@ -56,9 +56,9 @@ export default async function PublicVerifyPage({ params }: { params: { code: str
         <div style={{ backgroundColor: '#1a1a1a', padding: '2rem', textAlign: 'center', color: '#d4af37' }}>
           {/* Logo fallback */}
           <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>
-            <Image src="/logo.png" alt="Akshaya Jewellery" width={80} height={80} style={{ objectFit: 'contain' }} />
+            <Image src="/logo.png" alt="Akshaya Jewellers" width={80} height={80} style={{ objectFit: 'contain' }} />
           </div>
-          <h1 style={{ fontSize: '1.5rem', letterSpacing: '2px', margin: 0, textTransform: 'uppercase' }}>Akshaya Jewellery</h1>
+          <h1 style={{ fontSize: '1.5rem', letterSpacing: '2px', margin: 0, textTransform: 'uppercase' }}>Akshaya Jewellers</h1>
           <p style={{ fontSize: '0.875rem', letterSpacing: '1px', opacity: 0.8, marginTop: '0.25rem' }}>Digital Gift Coupon</p>
         </div>
 
@@ -115,7 +115,7 @@ export default async function PublicVerifyPage({ params }: { params: { code: str
         {/* Footer */}
         <div style={{ backgroundColor: '#f3f4f6', padding: '1.5rem', textAlign: 'center' }}>
           <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}>
-            Please visit <strong>Akshaya Jewellery</strong> to redeem this coupon.
+            Please visit <strong>Akshaya Jewellers</strong> to redeem this coupon.
           </p>
         </div>
       </div>

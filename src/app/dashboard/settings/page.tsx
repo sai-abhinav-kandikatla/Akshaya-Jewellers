@@ -148,7 +148,7 @@ export default function SettingsPage() {
           <div className="card-body p-6 flex items-center space-x-4">
             <img src="/logo.png" alt="Logo" className="w-12 h-12 object-contain bg-gray-100 rounded-md" />
             <div>
-              <p className="font-semibold text-gray-900">Akshaya Jewellery Digital Gift Coupon System</p>
+              <p className="font-semibold text-gray-900">Akshaya Jewellers Digital Gift Coupon System</p>
               <p className="text-sm text-gray-500">Version 1.0.0</p>
             </div>
           </div>

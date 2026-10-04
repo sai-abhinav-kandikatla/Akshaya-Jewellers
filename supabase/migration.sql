@@ -1,5 +1,5 @@
 -- ==============================================================================
--- AKSHAYA JEWELLERY — GIFT COUPON MANAGEMENT SYSTEM
+-- AKSHAYA JEWELLERS — GIFT COUPON MANAGEMENT SYSTEM
 -- Complete Database Migration for Supabase PostgreSQL
 -- ==============================================================================
 -- Run this entire file in the Supabase SQL Editor (Dashboard → SQL Editor → New Query)

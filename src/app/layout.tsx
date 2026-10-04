@@ -6,8 +6,8 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' });
 
 export const metadata: Metadata = {
-  title: 'Akshaya Jewellery — Gift Coupon Management',
-  description: 'Manage digital gift coupons for Akshaya Jewellery',
+  title: 'Akshaya Jewellers — Gift Coupon Management',
+  description: 'Manage digital gift coupons for Akshaya Jewellers',
 };
 
 export default function RootLayout({

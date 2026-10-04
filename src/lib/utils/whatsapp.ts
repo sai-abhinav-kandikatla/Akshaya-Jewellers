@@ -31,11 +31,11 @@ export function generateWhatsAppMessage(data: any, verificationUrl?: string): st
   const from = data.validFrom || data.valid_from || '';
   const until = data.validUntil || data.valid_until || '';
 
-  let msg = `🎁 *AKSHAYA JEWELLERY*
+  let msg = `🎁 *AKSHAYA JEWELLERS*
 
 Congratulations ${name}!
 
-You have received a ${formatCurrency(val)} Gift Coupon from Akshaya Jewellery.
+You have received a ${formatCurrency(val)} Gift Coupon from Akshaya Jewellers.
 
 🎟 *Coupon Code:* ${code}
 💰 *Coupon Value:* ${formatCurrency(val)}
@@ -47,7 +47,7 @@ You have received a ${formatCurrency(val)} Gift Coupon from Akshaya Jewellery.
     msg += `\n🔗 *Verify Coupon:* ${verificationUrl}`;
   }
 
-  msg += `\n\nPlease present this coupon at Akshaya Jewellery to redeem it.\n\n_Terms & Conditions Apply._`;
+  msg += `\n\nPlease present this coupon at Akshaya Jewellers to redeem it.\n\n_Terms & Conditions Apply._`;
   return msg;
 }
 
