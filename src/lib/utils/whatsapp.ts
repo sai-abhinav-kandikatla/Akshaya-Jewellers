@@ -25,29 +25,37 @@ export interface WhatsAppMessageData {
  * Generate the WhatsApp message text for a coupon
  */
 export function generateWhatsAppMessage(data: any, verificationUrl?: string): string {
-  const name = data.customerName || data.customer_name || '';
+  const name = data.customerName || data.customer_name || 'Valued Customer';
   const val = data.couponValue ?? data.coupon_value ?? data.value ?? 0;
   const code = data.couponCode || data.coupon_code || '';
   const from = data.validFrom || data.valid_from || '';
   const until = data.validUntil || data.valid_until || '';
 
-  let msg = `🎁 *AKSHAYA JEWELLERS*
+  let msg = `✨ *AKSHAYA JEWELLERS* ✨
+*Exclusive Gift Coupon*
 
-Congratulations ${name}!
+Dear *${name}*,
 
-You have received a ${formatCurrency(val)} Gift Coupon from Akshaya Jewellers.
+Warm greetings from *Akshaya Jewellers*! 🌟
+We are delighted to present you with an exclusive Gift Coupon.
 
-🎟 *Coupon Code:* ${code}
-💰 *Coupon Value:* ${formatCurrency(val)}
-
-📅 *Valid From:* ${formatDateIndian(from)}
-📅 *Valid Until:* ${formatDateIndian(until)}`;
+💎 *Coupon Details:*
+• *Coupon Code:* ${code}
+• *Coupon Value:* *${formatCurrency(val)}*
+• *Valid From:* ${formatDateIndian(from)}
+• *Valid Until:* ${formatDateIndian(until)}`;
 
   if (verificationUrl) {
-    msg += `\n🔗 *Verify Coupon:* ${verificationUrl}`;
+    msg += `\n\n🔍 *Verify & View Coupon Online:*
+${verificationUrl}`;
   }
 
-  msg += `\n\nPlease present this coupon at Akshaya Jewellers to redeem it.\n\n_Terms & Conditions Apply._`;
+  msg += `\n\n📍 *How to Redeem:*
+Please present this message or coupon code at our Akshaya Jewellers store during your purchase.
+
+Thank you for choosing Akshaya Jewellers! 💍✨
+_Terms & Conditions Apply._`;
+
   return msg;
 }
 
