@@ -5,8 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function adminLoginAction(usernameInput: string, passwordInput: string) {
   try {
-    const adminUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME || 'Akshaya_Jewellers';
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'Akshaya@00';
+    const adminUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME || process.env.ADMIN_USERNAME || 'Akshaya_Jewellers';
+    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'Akshaya@00';
 
     const cleanInput = usernameInput.trim();
     const isAdminUser = cleanInput.toLowerCase() === adminUsername.toLowerCase() || 
