@@ -61,7 +61,12 @@ export default function CouponSuccessPage({ params }: { params: { code: string }
   };
 
   if (isLoading) {
-    return <div className="loading-spinner">Loading...</div>;
+    return (
+      <div style={{ textAlign: 'center', padding: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="loading-spinner" />
+        <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Loading...</span>
+      </div>
+    );
   }
 
   if (error || !coupon) {

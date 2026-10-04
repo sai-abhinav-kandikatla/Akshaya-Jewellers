@@ -94,7 +94,12 @@ export default function CouponDetailPage({ params }: { params: { code: string } 
     }
   };
 
-  if (isLoading) return <div className="loading-spinner" style={{ textAlign: 'center', padding: '3rem' }}>Loading details...</div>;
+  if (isLoading) return (
+    <div style={{ textAlign: 'center', padding: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+      <div className="loading-spinner" />
+      <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Loading details...</span>
+    </div>
+  );
   if (error || !coupon) return <div className="empty-state"><h2>{error || 'Coupon not found'}</h2><button onClick={() => router.push('/dashboard/coupons')} className="btn btn-secondary mt-4">Go Back</button></div>;
 
   const status = computeDisplayStatus(coupon);

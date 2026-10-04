@@ -154,7 +154,12 @@ export default function VerifyCouponPage() {
         </form>
       </div>
 
-      {isLoading && <div className="loading-spinner" style={{ textAlign: 'center', padding: '2rem' }}>Checking...</div>}
+      {isLoading && (
+        <div style={{ textAlign: 'center', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="loading-spinner" />
+          <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Checking...</span>
+        </div>
+      )}
 
       {error && !isLoading && (
         <div className="empty-state" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '2rem', textAlign: 'center' }}>

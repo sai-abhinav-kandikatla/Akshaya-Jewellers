@@ -203,7 +203,10 @@ export default function CouponsListPage() {
       </div>
 
       {isLoading ? (
-        <div className="loading-spinner" style={{ textAlign: 'center', padding: '3rem 0' }}>Loading...</div>
+        <div style={{ textAlign: 'center', padding: '3rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+          <div className="loading-spinner" />
+          <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Loading coupons...</span>
+        </div>
       ) : coupons.length === 0 ? (
         <div className="empty-state" style={{ textAlign: 'center', padding: '4rem 1rem', background: '#fff', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
           <svg viewBox="0 0 24 24" width="48" height="48" stroke="#9ca3af" strokeWidth="1" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 1rem' }}>
