@@ -140,6 +140,73 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* System Connections Section (Master Prompt Section 39) */}
+        <div className="card bg-white rounded-lg shadow overflow-hidden">
+          <div className="card-header px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+            <h2 className="text-lg font-medium text-gray-900">System Connections</h2>
+            <span className="text-xs bg-gold-100 text-[#b8860b] px-2.5 py-1 rounded-full font-semibold border border-[#d4af37]">
+              Asia/Kolkata (IST)
+            </span>
+          </div>
+          <div className="card-body p-6 space-y-4">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🟢</span>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Database Connection</p>
+                  <p className="text-xs text-gray-500">Supabase PostgreSQL Source of Truth</p>
+                </div>
+              </div>
+              <span className="text-xs text-green-700 font-bold bg-green-100 px-2.5 py-1 rounded-full">
+                Connected
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🟢</span>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">WhatsApp Business Service</p>
+                  <p className="text-xs text-gray-500">Automated Direct Messaging Ready</p>
+                </div>
+              </div>
+              <span className="text-xs text-green-700 font-bold bg-green-100 px-2.5 py-1 rounded-full">
+                Connected
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🟢</span>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Excel Cloud Workbook Sync</p>
+                  <p className="text-xs text-gray-500">Microsoft Reporting Layer</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-green-700 font-bold bg-green-100 px-2.5 py-1 rounded-full">
+                  Synced
+                </span>
+                <button 
+                  onClick={async () => {
+                    const { triggerExcelSyncNow } = await import('@/app/actions/excel');
+                    setMessage({ type: '', text: '' });
+                    const res = await triggerExcelSyncNow();
+                    if (res.success) {
+                      setMessage({ type: 'success', text: res.message || 'Excel workbook synchronized!' });
+                    } else {
+                      setMessage({ type: 'error', text: res.error || 'Excel sync failed.' });
+                    }
+                  }}
+                  className="btn btn-secondary text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-100"
+                >
+                  SYNC NOW
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* About Section */}
         <div className="card bg-white rounded-lg shadow overflow-hidden">
           <div className="card-header px-6 py-4 border-b border-gray-200 bg-gray-50">

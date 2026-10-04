@@ -7,6 +7,8 @@ import { generateCouponCode } from '@/lib/utils/couponCode';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { normalizePhone } from '@/lib/utils/validators';
 import { logAuditEvent } from './audit';
+import { sendWhatsAppCloudAPI } from './whatsapp';
+import { syncCouponToExcel } from './excel';
 
 export async function createCoupon(input: CreateCouponInput): Promise<ApiResponse<Coupon>> {
   try {
@@ -72,6 +74,21 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
       };
     }
 
+    // Trigger WhatsApp Cloud API sending
+    try {
+      await sendWhatsAppCloudAPI(coupon);
+    } catch (waErr) {
+      console.warn('Non-fatal WhatsApp trigger warning:', waErr);
+    }
+
+    // Trigger Excel Cloud Synchronization
+    try {
+      await syncCouponToExcel(coupon);
+    } catch (excelErr) {
+      console.warn('Non-fatal Excel sync trigger warning:', excelErr);
+    }
+
+    // Log Audit Record
     try {
       await logAuditEvent('COUPON_CREATED', coupon.id, input.campaign_id || undefined, {
         customer_name: coupon.customer_name,
