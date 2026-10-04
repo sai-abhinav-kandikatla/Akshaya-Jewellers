@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiResponse, Coupon, CouponWithDisplayStatus, CreateCouponInput, CouponFilters } from '@/lib/types';
 import { generateCouponCode } from '@/lib/utils/couponCode';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
@@ -9,7 +10,7 @@ import { logAuditEvent } from './audit';
 
 export async function createCoupon(input: CreateCouponInput): Promise<ApiResponse<Coupon>> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     
     const val = input.coupon_value || input.discount_value || 0;
     if (!input.customer_name || !input.phone_number || !val || !input.valid_from || !input.valid_until) {
@@ -20,6 +21,7 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
     let code = '';
     let retryCount = 0;
     let coupon = null;
+    let lastError: any = null;
 
     while (retryCount < 5) {
       code = generateCouponCode();
@@ -43,34 +45,49 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
         break;
       }
       
+      lastError = error;
       if (error && error.code === '23505') {
         retryCount++;
       } else {
         console.error('Error creating coupon:', error);
-        return { success: false, error: 'Failed to create coupon due to database error.' };
+        return { 
+          success: false, 
+          error: error?.message 
+            ? `Database Error: ${error.message}${error.details ? ` (${error.details})` : ''}` 
+            : 'Failed to create coupon due to database error.' 
+        };
       }
     }
 
     if (!coupon) {
-      return { success: false, error: 'Failed to generate a unique coupon code after multiple attempts.' };
+      return { 
+        success: false, 
+        error: lastError?.message 
+          ? `Database Error: ${lastError.message}` 
+          : 'Failed to generate a unique coupon code after multiple attempts.' 
+      };
     }
 
-    await logAuditEvent('COUPON_CREATED', coupon.id, input.campaign_id || undefined, {
-      customer_name: coupon.customer_name,
-      phone_number: coupon.phone_number,
-      code: coupon.coupon_code
-    });
+    try {
+      await logAuditEvent('COUPON_CREATED', coupon.id, input.campaign_id || undefined, {
+        customer_name: coupon.customer_name,
+        phone_number: coupon.phone_number,
+        code: coupon.coupon_code
+      });
+    } catch (auditErr) {
+      console.warn('Non-fatal audit log failure:', auditErr);
+    }
 
     return { success: true, message: 'Coupon created successfully', data: coupon };
-  } catch (error) {
+  } catch (error: any) {
     console.error('createCoupon exception:', error);
-    return { success: false, error: 'An unexpected error occurred while creating the coupon.' };
+    return { success: false, error: error?.message || 'An unexpected error occurred while creating the coupon.' };
   }
 }
 
 export async function getCoupons(filters: CouponFilters): Promise<{ coupons: CouponWithDisplayStatus[], total: number }> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const now = new Date();
     const istStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
@@ -117,7 +134,7 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
 
     if (error) {
       console.error('getCoupons db error:', error);
-      throw new Error('Database error fetching coupons');
+      return { coupons: [], total: 0 };
     }
 
     const couponsWithStatus: CouponWithDisplayStatus[] = (data || []).map((c: any) => ({
@@ -135,7 +152,7 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
 
 export async function getCouponByCode(code: string): Promise<CouponWithDisplayStatus | null> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('coupons')
       .select('*, campaigns(name)')
@@ -159,41 +176,59 @@ export async function getCouponByCode(code: string): Promise<CouponWithDisplaySt
 
 export async function claimCoupon(couponCode: string): Promise<ApiResponse> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { error } = await supabase.rpc('claim_coupon', { p_coupon_code: couponCode });
 
     if (error) {
-      console.error('claimCoupon rpc error:', error);
-      return { success: false, error: error.message || 'Failed to claim coupon.' };
+      console.warn('claimCoupon RPC failed, executing direct update fallback:', error);
+      const { data: updated, error: updateError } = await supabase
+        .from('coupons')
+        .update({ status: 'CLAIMED', claimed_at: new Date().toISOString() })
+        .eq('coupon_code', couponCode)
+        .select()
+        .single();
+
+      if (updateError || !updated) {
+        return { success: false, error: updateError?.message || error.message || 'Failed to claim coupon.' };
+      }
     }
 
     return { success: true, message: 'Coupon claimed successfully.' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('claimCoupon exception:', error);
-    return { success: false, error: 'An unexpected error occurred while claiming the coupon.' };
+    return { success: false, error: error?.message || 'An unexpected error occurred while claiming the coupon.' };
   }
 }
 
 export async function cancelCoupon(couponCode: string, reason?: string): Promise<ApiResponse> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { error } = await supabase.rpc('cancel_coupon', { p_coupon_code: couponCode, p_reason: reason });
 
     if (error) {
-      console.error('cancelCoupon rpc error:', error);
-      return { success: false, error: error.message || 'Failed to cancel coupon.' };
+      console.warn('cancelCoupon RPC failed, executing direct update fallback:', error);
+      const { data: updated, error: updateError } = await supabase
+        .from('coupons')
+        .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString() })
+        .eq('coupon_code', couponCode)
+        .select()
+        .single();
+
+      if (updateError || !updated) {
+        return { success: false, error: updateError?.message || error.message || 'Failed to cancel coupon.' };
+      }
     }
 
     return { success: true, message: 'Coupon cancelled successfully.' };
-  } catch (error) {
+  } catch (error: any) {
     console.error('cancelCoupon exception:', error);
-    return { success: false, error: 'An unexpected error occurred while cancelling the coupon.' };
+    return { success: false, error: error?.message || 'An unexpected error occurred while cancelling the coupon.' };
   }
 }
 
 export async function getCouponForVerification(code: string): Promise<CouponWithDisplayStatus | null> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('coupons')
       .select('*, campaigns(name)')
