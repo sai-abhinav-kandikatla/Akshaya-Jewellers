@@ -273,13 +273,27 @@ export function downloadCouponQrImage(imageFile: File): void {
   }
 }
 
+export async function copyQrImageToClipboard(imageFile: File): Promise<boolean> {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.write) return false;
+    await navigator.clipboard.write([
+      new ClipboardItem({ [imageFile.type || 'image/png']: imageFile })
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Directly redirect to WhatsApp to open chat with customer number.
  * No need to save customer number in phone contacts!
+ * Saves QR image to photos and copies it to clipboard so user can paste it.
  */
-export function redirectToWhatsAppDirect(data: any, imageFile?: File | null): void {
+export async function redirectToWhatsAppDirect(data: any, imageFile?: File | null): Promise<void> {
   if (imageFile) {
     downloadCouponQrImage(imageFile);
+    await copyQrImageToClipboard(imageFile).catch(() => false);
   }
   const url = generateWhatsAppURL(data);
   const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -293,10 +307,37 @@ export function redirectToWhatsAppDirect(data: any, imageFile?: File | null): vo
 }
 
 /**
- * Open direct WhatsApp chat with the customer number.
- * Saves the QR image to the device and opens the chat with the customer even if unsaved in contacts.
+ * Share the actual QR image card directly into WhatsApp / native apps.
+ * Attaches the image file and sets the coupon text as caption.
+ */
+export async function shareCouponQrImageFile(imageFile: File, data: WhatsAppMessageData): Promise<CouponShareResult> {
+  const message = generateWhatsAppMessage(data);
+
+  if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare?.({ files: [imageFile] })) {
+    try {
+      await navigator.share({
+        files: [imageFile],
+        title: 'Akshaya Jewellers Gift Coupon',
+        text: message,
+      });
+      return 'shared';
+    } catch (error: any) {
+      if (error && typeof error === 'object' && error.name === 'AbortError') {
+        return 'cancelled';
+      }
+      // If native share fails, fallback to direct chat redirect
+      await redirectToWhatsAppDirect(data, imageFile);
+      return 'prepared';
+    }
+  }
+
+  await redirectToWhatsAppDirect(data, imageFile);
+  return 'prepared';
+}
+
+/**
+ * Backward compatibility alias
  */
 export function shareCouponQrFileWithText(imageFile: File, data: WhatsAppMessageData): Promise<CouponShareResult> {
-  redirectToWhatsAppDirect(data, imageFile);
-  return Promise.resolve('prepared');
+  return shareCouponQrImageFile(imageFile, data);
 }

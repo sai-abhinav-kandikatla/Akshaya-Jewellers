@@ -1797,9 +1797,12 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-body); color: #111; }
 .bottom-sheet-content { margin-top: 16px; }
 .bottom-sheet-actions { margin-top: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .bottom-sheet-actions:has(> :only-child) { grid-template-columns: 1fr; }
-.bottom-sheet-actions button { min-height: 48px; padding: 0 14px; border-radius: 12px; font-family: var(--font-body); font-size: 14px; font-weight: 600; }
+.bottom-sheet-actions.is-column { display: flex; flex-direction: column; gap: 10px; }
+.bottom-sheet-actions button { min-height: 48px; padding: 0 14px; border-radius: 12px; font-family: var(--font-body); font-size: 14px; font-weight: 600; text-align: center; }
 .bottom-sheet-secondary { color: #111; background: #fff; border: 1px solid #111; }
 .bottom-sheet-primary { color: #111; background: #C6A15B; border: 1px solid #C6A15B; }
+.bottom-sheet-tertiary { min-height: 40px !important; color: #666; background: transparent; border: none; font-size: 13px !important; font-weight: 500 !important; }
+.bottom-sheet-tertiary:hover { color: #111; }
 .bottom-sheet-actions button:disabled { opacity: 0.5; }
 
 /* Settings and small-screen form rows */

@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { getCouponByCode } from '@/app/actions/coupons';
 import { logAuditEvent } from '@/app/actions/audit';
 import { formatCurrency, formatIndianDate } from '@/lib/utils/formatters';
-import { createCouponQrImageFile, shareCouponQrFileWithText } from '@/lib/utils/whatsapp';
+import { createCouponQrImageFile, shareCouponQrImageFile, redirectToWhatsAppDirect } from '@/lib/utils/whatsapp';
 import type { Coupon } from '@/lib/types';
 import BottomSheet from '@/components/BottomSheet';
 
@@ -58,16 +58,28 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
     window.setTimeout(() => setToast(''), 3500);
   };
 
-  const sendWhatsApp = async () => {
+  const handleShareQrImage = async () => {
+    setIsSendingWhatsApp(true);
+    try {
+      if (!qrImageFile) throw new Error('The coupon QR image is still preparing. Try again in a moment.');
+      const result = await shareCouponQrImageFile(qrImageFile, coupon);
+      if (result === 'cancelled') return;
+      void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
+      notify('QR image and coupon text ready in WhatsApp.');
+    } catch (shareError) {
+      notify(shareError instanceof Error ? shareError.message : 'Could not share the coupon QR image.');
+    } finally {
+      setIsSendingWhatsApp(false);
+      setConfirmWhatsApp(false);
+    }
+  };
+
+  const handleDirectChat = async () => {
     setIsSendingWhatsApp(true);
     try {
       void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
-      if (qrImageFile) {
-        await shareCouponQrFileWithText(qrImageFile, coupon);
-      } else {
-        await shareCouponQrFileWithText(new File([], `${coupon.coupon_code}-QR.png`), coupon);
-      }
-      notify('Opening direct WhatsApp chat with customer…');
+      await redirectToWhatsAppDirect(coupon, qrImageFile);
+      notify('QR image copied to clipboard! Opening direct WhatsApp chat…');
     } catch (shareError) {
       notify(shareError instanceof Error ? shareError.message : 'Could not open WhatsApp.');
     } finally {
@@ -83,14 +95,21 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
         isOpen={confirmWhatsApp}
         onClose={() => setConfirmWhatsApp(false)}
         title="Send on WhatsApp"
-        description={`Open direct WhatsApp chat with +91 ${coupon.phone_number}? (No need to save contact)`}
+        description={`Send this coupon to +91 ${coupon.phone_number}:`}
         details={{ code: coupon.coupon_code, customerName: coupon.customer_name, value: formatCurrency(coupon.coupon_value ?? coupon.value ?? 0) }}
-        primaryButtonText="Open WhatsApp Chat"
-        primaryButtonAction={sendWhatsApp}
-        secondaryButtonText="Cancel"
-        secondaryButtonAction={() => setConfirmWhatsApp(false)}
+        actionsDirection="column"
+        primaryButtonText="📷 Share QR Image & Text (WhatsApp)"
+        primaryButtonAction={handleShareQrImage}
+        secondaryButtonText={`💬 Direct Chat with +91 ${coupon.phone_number}`}
+        secondaryButtonAction={handleDirectChat}
+        tertiaryButtonText="Cancel"
+        tertiaryButtonAction={() => setConfirmWhatsApp(false)}
         isLoading={isSendingWhatsApp}
-      />
+      >
+        <p style={{ fontSize: '12px', color: '#666', textAlign: 'center', margin: '4px 0 12px' }}>
+          Choose <strong>Share QR Image</strong> to send the image card directly, or <strong>Direct Chat</strong> if the customer is not in your contacts.
+        </p>
+      </BottomSheet>
 
       <div className="coupon-success-intro">
         <p className="coupon-success-mark" aria-hidden="true">✓</p>

@@ -7,7 +7,7 @@ import { getCouponByCode, claimCoupon, cancelCoupon } from '@/app/actions/coupon
 import { logAuditEvent } from '@/app/actions/audit';
 import { formatCurrency, formatIndianDate } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
-import { createCouponQrImageFile, shareCouponQrFileWithText } from '@/lib/utils/whatsapp';
+import { createCouponQrImageFile, shareCouponQrImageFile, redirectToWhatsAppDirect } from '@/lib/utils/whatsapp';
 import BottomSheet from '@/components/BottomSheet';
 import type { Coupon } from '@/lib/types';
 
@@ -62,27 +62,41 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
     window.setTimeout(() => setToast(''), 2500);
   };
 
+  const handleShareQrImage = async () => {
+    if (!coupon) return;
+    setIsProcessing(true);
+    try {
+      if (!qrImageFile) throw new Error('The coupon QR image is still preparing. Try again in a moment.');
+      const result = await shareCouponQrImageFile(qrImageFile, coupon);
+      if (result === 'cancelled') return;
+      void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
+      notify('QR image and coupon text ready in WhatsApp.');
+    } catch (shareError) {
+      notify(shareError instanceof Error ? shareError.message : 'Could not share the coupon QR image.');
+    } finally {
+      setIsProcessing(false);
+      setSheetAction(null);
+    }
+  };
+
+  const handleDirectChat = async () => {
+    if (!coupon) return;
+    setIsProcessing(true);
+    try {
+      void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
+      await redirectToWhatsAppDirect(coupon, qrImageFile);
+      notify('QR image copied to clipboard! Opening direct WhatsApp chat…');
+    } catch (shareError) {
+      notify(shareError instanceof Error ? shareError.message : 'Could not open WhatsApp.');
+    } finally {
+      setIsProcessing(false);
+      setSheetAction(null);
+    }
+  };
+
   const runSheetAction = async () => {
     if (!coupon || !sheetAction) return;
     const action = sheetAction;
-    if (action === 'WHATSAPP') {
-      setIsProcessing(true);
-      try {
-        void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
-        if (qrImageFile) {
-          await shareCouponQrFileWithText(qrImageFile, coupon);
-        } else {
-          await shareCouponQrFileWithText(new File([], `${coupon.coupon_code}-QR.png`), coupon);
-        }
-        notify('Opening direct WhatsApp chat with customer…');
-      } catch (shareError) {
-        notify(shareError instanceof Error ? shareError.message : 'Could not open WhatsApp.');
-      } finally {
-        setIsProcessing(false);
-        setSheetAction(null);
-      }
-      return;
-    }
     setIsProcessing(true);
     try {
       const result = action === 'CLAIM'
@@ -118,9 +132,8 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
   const sheetCopy = {
     CLAIM: ['Claim Coupon', 'Are you sure you want to claim this coupon?', 'Yes, Claim'],
     CANCEL: ['Cancel Coupon', 'Are you sure you want to cancel this coupon?', 'Yes, Cancel'],
-    WHATSAPP: ['Send on WhatsApp', `Open direct WhatsApp chat with +91 ${coupon.phone_number}? (No need to save contact)`, 'Open WhatsApp Chat'],
   } as const;
-  const activeCopy = sheetAction ? sheetCopy[sheetAction] : null;
+  const activeCopy = sheetAction && sheetAction !== 'WHATSAPP' ? sheetCopy[sheetAction] : null;
 
   return (
     <div className="coupon-detail-page">
@@ -128,15 +141,24 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
       <BottomSheet
         isOpen={!!sheetAction}
         onClose={() => setSheetAction(null)}
-        title={activeCopy?.[0] || ''}
-        description={activeCopy?.[1] || ''}
+        title={sheetAction === 'WHATSAPP' ? 'Send on WhatsApp' : (activeCopy?.[0] || '')}
+        description={sheetAction === 'WHATSAPP' ? `Send this coupon to +91 ${coupon.phone_number}:` : (activeCopy?.[1] || '')}
         details={{ code: coupon.coupon_code, customerName: coupon.customer_name, value: formatCurrency(coupon.coupon_value ?? coupon.value ?? 0) }}
-        primaryButtonText={activeCopy?.[2] || 'Continue'}
-        primaryButtonAction={runSheetAction}
-        secondaryButtonText="Go Back"
-        secondaryButtonAction={() => setSheetAction(null)}
+        actionsDirection={sheetAction === 'WHATSAPP' ? 'column' : 'row'}
+        primaryButtonText={sheetAction === 'WHATSAPP' ? '📷 Share QR Image & Text (WhatsApp)' : (activeCopy?.[2] || 'Continue')}
+        primaryButtonAction={sheetAction === 'WHATSAPP' ? handleShareQrImage : runSheetAction}
+        secondaryButtonText={sheetAction === 'WHATSAPP' ? `💬 Direct Chat with +91 ${coupon.phone_number}` : 'Go Back'}
+        secondaryButtonAction={sheetAction === 'WHATSAPP' ? handleDirectChat : () => setSheetAction(null)}
+        tertiaryButtonText={sheetAction === 'WHATSAPP' ? 'Cancel' : undefined}
+        tertiaryButtonAction={sheetAction === 'WHATSAPP' ? () => setSheetAction(null) : undefined}
         isLoading={isProcessing}
-      />
+      >
+        {sheetAction === 'WHATSAPP' && (
+          <p style={{ fontSize: '12px', color: '#666', textAlign: 'center', margin: '4px 0 12px' }}>
+            Choose <strong>Share QR Image</strong> to send the image card directly, or <strong>Direct Chat</strong> if the customer is not in your contacts.
+          </p>
+        )}
+      </BottomSheet>
 
       <div className="page-heading"><h1>Coupon Details</h1></div>
       <section className="coupon-detail-section" aria-label="Coupon information">

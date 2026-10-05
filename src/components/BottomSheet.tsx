@@ -14,10 +14,13 @@ interface BottomSheetProps {
     date?: string;
   };
   children?: React.ReactNode;
-  primaryButtonText: string;
-  primaryButtonAction: () => void;
+  primaryButtonText?: string;
+  primaryButtonAction?: () => void;
   secondaryButtonText?: string;
   secondaryButtonAction?: () => void;
+  tertiaryButtonText?: string;
+  tertiaryButtonAction?: () => void;
+  actionsDirection?: 'row' | 'column';
   isLoading?: boolean;
 }
 
@@ -32,6 +35,9 @@ export default function BottomSheet({
   primaryButtonAction,
   secondaryButtonText,
   secondaryButtonAction,
+  tertiaryButtonText,
+  tertiaryButtonAction,
+  actionsDirection = 'row',
   isLoading = false,
 }: BottomSheetProps) {
   const titleId = useId();
@@ -76,25 +82,64 @@ export default function BottomSheet({
 
         {children && <div className="bottom-sheet-content">{children}</div>}
 
-        <div className="bottom-sheet-actions">
-          {secondaryButtonText && (
-            <button
-              type="button"
-              className="bottom-sheet-secondary"
-              onClick={secondaryButtonAction || onClose}
-              disabled={isLoading}
-            >
-              {secondaryButtonText}
-            </button>
+        <div className={`bottom-sheet-actions${actionsDirection === 'column' ? ' is-column' : ''}`}>
+          {actionsDirection === 'column' ? (
+            <>
+              {primaryButtonText && (
+                <button
+                  type="button"
+                  className="bottom-sheet-primary"
+                  onClick={primaryButtonAction}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Processing…' : primaryButtonText}
+                </button>
+              )}
+              {secondaryButtonText && (
+                <button
+                  type="button"
+                  className="bottom-sheet-secondary"
+                  onClick={secondaryButtonAction || onClose}
+                  disabled={isLoading}
+                >
+                  {secondaryButtonText}
+                </button>
+              )}
+              {tertiaryButtonText && (
+                <button
+                  type="button"
+                  className="bottom-sheet-tertiary"
+                  onClick={tertiaryButtonAction || onClose}
+                  disabled={isLoading}
+                >
+                  {tertiaryButtonText}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              {secondaryButtonText && (
+                <button
+                  type="button"
+                  className="bottom-sheet-secondary"
+                  onClick={secondaryButtonAction || onClose}
+                  disabled={isLoading}
+                >
+                  {secondaryButtonText}
+                </button>
+              )}
+              {primaryButtonText && (
+                <button
+                  type="button"
+                  className="bottom-sheet-primary"
+                  onClick={primaryButtonAction}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Processing…' : primaryButtonText}
+                </button>
+              )}
+            </>
           )}
-          <button
-            type="button"
-            className="bottom-sheet-primary"
-            onClick={primaryButtonAction}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Processing…' : primaryButtonText}
-          </button>
         </div>
       </section>
     </div>

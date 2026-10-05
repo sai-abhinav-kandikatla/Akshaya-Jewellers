@@ -1,11 +1,40 @@
 export const dynamic = 'force-dynamic';
 
 import React from 'react';
+import type { Metadata } from 'next';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency, formatIndianDate } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { isUuid } from '@/lib/utils/identifiers';
 import CouponQRCode from '@/components/CouponQRCode';
+
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> | { code: string } }): Promise<Metadata> {
+  const { code } = await params;
+  const upperCode = (code || '').toUpperCase();
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(upperCode)}`;
+
+  return {
+    title: `Akshaya Jewellers Coupon - ${upperCode}`,
+    description: `Digital Gift Coupon ${upperCode} from Akshaya Jewellers.`,
+    openGraph: {
+      title: `Akshaya Jewellers Gift Coupon - ${upperCode}`,
+      description: `Scan or present this digital gift coupon at Akshaya Jewellers to redeem.`,
+      images: [
+        {
+          url: qrImageUrl,
+          width: 600,
+          height: 600,
+          alt: `Akshaya Jewellers Coupon ${upperCode} QR Code`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `Akshaya Jewellers Coupon - ${upperCode}`,
+      images: [qrImageUrl],
+    },
+  };
+}
 
 export default async function PublicVerifyPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
   const supabase = createAdminClient();
