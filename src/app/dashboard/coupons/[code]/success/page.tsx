@@ -43,11 +43,11 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
     const svg = qrRef.current?.querySelector('svg');
     if (!svg) return;
     let active = true;
-    void createCouponQrImageFile(svg, coupon.coupon_code)
+    void createCouponQrImageFile(svg, coupon)
       .then(file => { if (active) setQrImageFile(file); })
       .catch(() => { if (active) setQrImageFile(null); });
     return () => { active = false; };
-  }, [coupon?.coupon_code]);
+  }, [coupon]);
 
   if (isLoading) return <p className="page-state">Loading coupon…</p>;
   if (!coupon) return <div className="page-state"><p>{error || 'Coupon not found.'}</p><Link href="/dashboard">Back to Home</Link></div>;
@@ -106,8 +106,11 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
           <div><dt>Valid From</dt><dd>{formatIndianDate(coupon.valid_from)}</dd></div>
           <div><dt>Valid Until</dt><dd>{formatIndianDate(coupon.valid_until)}</dd></div>
         </dl>
-        <div ref={qrRef} className="coupon-success-qr"><QRCodeSVG value={verificationUrl} size={152} level="M" /></div>
-        <p className="coupon-success-hint">Scan to verify coupon</p>
+        <div ref={qrRef} className="coupon-success-qr">
+          <QRCodeSVG value={verificationUrl} size={152} level="M" />
+          <p className="coupon-qr-unique-id">{coupon.coupon_code}</p>
+        </div>
+        <p className="coupon-success-hint">Scan QR or use unique ID {coupon.coupon_code} to verify</p>
       </section>
 
       <div className="coupon-success-actions">

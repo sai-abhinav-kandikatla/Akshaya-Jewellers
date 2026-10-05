@@ -53,10 +53,12 @@ Dear ${name},
 Warm greetings from Akshaya Jewellers! 🌟
 
 💎 *Coupon Details:*
-• Coupon Code: *${code}*
+• Unique Coupon ID: *${code}*
 • Coupon Value: *${formatCurrency(val)}*
 • Valid From: ${formatVoucherDate(from)}
 • Valid Until: ${formatVoucherDate(until)}
+
+Please present this QR code or Unique Coupon ID (*${code}*) at our store to redeem your gift.
 
 Thank you for choosing Akshaya Jewellers! 💍✨`;
 }
@@ -80,7 +82,27 @@ export function generateWhatsAppURL(data: any): string {
 
 export type CouponShareResult = 'shared' | 'prepared' | 'cancelled';
 
-export async function createCouponQrImageFile(svg: SVGSVGElement, couponCode: string): Promise<File> {
+export async function createCouponQrImageFile(svg: SVGSVGElement, couponOrCode: any): Promise<File> {
+  const couponCode = typeof couponOrCode === 'string'
+    ? couponOrCode
+    : (couponOrCode?.coupon_code || couponOrCode?.couponCode || '');
+
+  const customerName = typeof couponOrCode === 'object'
+    ? (couponOrCode?.customer_name || couponOrCode?.customerName || '')
+    : '';
+
+  const couponValue = typeof couponOrCode === 'object'
+    ? (couponOrCode?.coupon_value ?? couponOrCode?.value ?? couponOrCode?.couponValue ?? 0)
+    : 0;
+
+  const validFrom = typeof couponOrCode === 'object'
+    ? (couponOrCode?.valid_from || couponOrCode?.validFrom || '')
+    : '';
+
+  const validUntil = typeof couponOrCode === 'object'
+    ? (couponOrCode?.valid_until || couponOrCode?.validUntil || '')
+    : '';
+
   const markup = new XMLSerializer().serializeToString(svg);
   const svgBlob = new Blob([markup], { type: 'image/svg+xml;charset=utf-8' });
   const svgUrl = URL.createObjectURL(svgBlob);
@@ -94,14 +116,122 @@ export async function createCouponQrImageFile(svg: SVGSVGElement, couponCode: st
     });
 
     const canvas = document.createElement('canvas');
-    canvas.width = 600;
-    canvas.height = 600;
+    const width = 640;
+    const height = 820;
+    canvas.width = width;
+    canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Could not prepare the coupon QR image.');
 
-    context.fillStyle = '#fff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    // 1. Crisp white background & border
+    context.fillStyle = '#FFFFFF';
+    context.fillRect(0, 0, width, height);
+
+    context.strokeStyle = '#E7E0CF';
+    context.lineWidth = 4;
+    context.strokeRect(2, 2, width - 4, height - 4);
+
+    // 2. Top gold accent bar
+    context.fillStyle = '#C9A227';
+    context.fillRect(0, 0, width, 10);
+
+    // 3. Header
+    context.fillStyle = '#111111';
+    context.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Georgia, serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('AKSHAYA JEWELLERS', width / 2, 54);
+
+    context.fillStyle = '#A67C00';
+    context.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    context.fillText('DIGITAL GIFT COUPON', width / 2, 78);
+
+    // Divider line
+    context.strokeStyle = '#E7E0CF';
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(40, 100);
+    context.lineTo(width - 40, 100);
+    context.stroke();
+
+    // 4. QR Code Container Box
+    const qrBoxSize = 340;
+    const qrBoxX = (width - qrBoxSize) / 2;
+    const qrBoxY = 118;
+
+    context.fillStyle = '#FFFFFF';
+    context.fillRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
+    context.strokeStyle = '#E7E0CF';
+    context.lineWidth = 1.5;
+    context.strokeRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
+
+    // Draw the QR Code image
+    const pad = 14;
+    context.drawImage(image, qrBoxX + pad, qrBoxY + pad, qrBoxSize - pad * 2, qrBoxSize - pad * 2);
+
+    // 5. Unique Coupon ID Label & Badge Box
+    context.fillStyle = '#666666';
+    context.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    context.fillText('UNIQUE COUPON ID', width / 2, 492);
+
+    const idBoxW = 380;
+    const idBoxH = 52;
+    const idBoxX = (width - idBoxW) / 2;
+    const idBoxY = 508;
+
+    context.fillStyle = '#FDFBF7';
+    context.fillRect(idBoxX, idBoxY, idBoxW, idBoxH);
+    context.strokeStyle = '#C9A227';
+    context.lineWidth = 2;
+    context.strokeRect(idBoxX, idBoxY, idBoxW, idBoxH);
+
+    // Prominent Unique ID Text
+    context.fillStyle = '#111111';
+    context.font = 'bold 28px ui-monospace, SFMono-Regular, "Courier New", Consolas, monospace';
+    context.fillText(couponCode, width / 2, idBoxY + idBoxH / 2 + 1);
+
+    // 6. Value, Customer, and Validity
+    let currentY = 590;
+
+    if (couponValue > 0) {
+      context.fillStyle = '#A67C00';
+      context.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      context.fillText(formatCurrency(couponValue), width / 2, currentY);
+      currentY += 28;
+    }
+
+    if (customerName) {
+      context.fillStyle = '#222222';
+      context.font = '500 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      context.fillText(`Customer: ${customerName}`, width / 2, currentY);
+      currentY += 24;
+    }
+
+    if (validUntil) {
+      context.fillStyle = '#666666';
+      context.font = '400 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const validityText = validFrom
+        ? `Valid: ${formatVoucherDate(validFrom)} – ${formatVoucherDate(validUntil)}`
+        : `Valid until ${formatVoucherDate(validUntil)}`;
+      context.fillText(validityText, width / 2, currentY);
+      currentY += 24;
+    }
+
+    // 7. Footer Redemption Guidance
+    context.strokeStyle = '#E7E0CF';
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(40, 715);
+    context.lineTo(width - 40, 715);
+    context.stroke();
+
+    context.fillStyle = '#666666';
+    context.font = '400 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    context.fillText('Scan QR code or present Unique ID at store to redeem', width / 2, 746);
+
+    context.fillStyle = '#A67C00';
+    context.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    context.fillText('Akshaya Jewellers • Mancherial', width / 2, 770);
 
     const png = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not export the coupon QR image.')), 'image/png');

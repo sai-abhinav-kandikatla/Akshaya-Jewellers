@@ -10,8 +10,10 @@ interface CouponQRCodeProps {
 }
 
 export default function CouponQRCode({ value, size = 180, label }: CouponQRCodeProps) {
+  const displayId = label || (value.startsWith('http') ? value.split('/').filter(Boolean).pop() : value);
+
   return (
-    <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-[#C6A15B] space-y-2">
+    <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-[#E7E0CF] space-y-2">
       <div className="p-2 bg-white rounded-xl">
         <QRCodeSVG
           value={value}
@@ -28,9 +30,9 @@ export default function CouponQRCode({ value, size = 180, label }: CouponQRCodeP
           }}
         />
       </div>
-      {label && (
-        <p className="text-[11px] font-semibold text-gray-500 text-center tracking-wide uppercase">
-          {label}
+      {displayId && (
+        <p className="text-sm font-bold text-[#111111] font-mono tracking-wider text-center pt-0.5">
+          {displayId}
         </p>
       )}
     </div>

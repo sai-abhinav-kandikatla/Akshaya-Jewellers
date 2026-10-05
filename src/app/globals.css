@@ -1851,7 +1851,8 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-body); color: #111; }
 .coupon-detail-fields dt, .verify-result dt, .coupon-success-dates dt { color: #666; font-size: 13px; }
 .coupon-detail-fields dd, .verify-result dd, .coupon-success-dates dd { color: #111; font-size: 13px; font-weight: 500; text-align: right; overflow-wrap: anywhere; }
 .coupon-detail-qr h2 { margin-bottom: 12px; font-size: 15px; font-weight: 600; }
-.coupon-qr-code { width: fit-content; margin: 0 auto; padding: 12px; background: #fff; }
+.coupon-qr-code { width: fit-content; margin: 0 auto; padding: 12px; background: #fff; text-align: center; }
+.coupon-qr-unique-id { margin-top: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 15px; font-weight: 700; letter-spacing: 0.08em; color: #111; text-align: center; }
 .coupon-detail-actions, .coupon-success-actions { display: flex; flex-direction: column; gap: 10px; }
 .action-primary, .action-secondary { width: 100%; min-height: 50px; padding: 0 16px; display: flex; align-items: center; justify-content: center; color: #111; border-radius: 12px; font: 500 14px var(--font-body); text-align: center; text-decoration: none; }
 .action-primary { background: #C6A15B; border: 1px solid #C6A15B; }
@@ -1872,8 +1873,8 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-body); color: #111; }
 .coupon-success-dates { margin-top: 16px; padding-block: 12px; display: flex; justify-content: space-between; gap: 16px; border-block: 1px solid #E8E2D5; text-align: left; }
 .coupon-success-dates > div { min-width: 0; }
 .coupon-success-dates dd { margin-top: 3px; font-size: 12px; text-align: left; }
-.coupon-success-qr { width: fit-content; margin: 16px auto 0; padding: 8px; }
-.coupon-success-hint { margin-top: 4px; color: #666; font-size: 11px; }
+.coupon-success-qr { width: fit-content; margin: 16px auto 0; padding: 8px; text-align: center; }
+.coupon-success-hint { margin-top: 6px; color: #666; font-size: 12px; }
 .verify-options { display: flex; flex-direction: column; gap: 16px; }
 .verify-or { display: flex; align-items: center; gap: 12px; color: #666; font-size: 12px; }
 .verify-or::before, .verify-or::after { height: 1px; flex: 1; content: ''; background: #E8E2D5; }

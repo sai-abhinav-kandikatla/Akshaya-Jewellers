@@ -55,7 +55,7 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
             <div><dt>Valid Until</dt><dd>{formatIndianDate(coupon.valid_until)}</dd></div>
           </dl>
           <div className="public-coupon-qr">
-            <CouponQRCode value={coupon.coupon_code} size={160} />
+            <CouponQRCode value={coupon.coupon_code} size={160} label={coupon.coupon_code} />
           </div>
           <div className="public-status-result" role="status">
             <p>{status.replace('_', ' ')}</p>

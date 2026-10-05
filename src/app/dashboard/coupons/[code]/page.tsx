@@ -51,11 +51,11 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
     const svg = qrRef.current?.querySelector('svg');
     if (!svg) return;
     let active = true;
-    void createCouponQrImageFile(svg, coupon.coupon_code)
+    void createCouponQrImageFile(svg, coupon)
       .then(file => { if (active) setQrImageFile(file); })
       .catch(() => { if (active) setQrImageFile(null); });
     return () => { active = false; };
-  }, [coupon?.coupon_code]);
+  }, [coupon]);
 
   const notify = (message: string) => {
     setToast(message);
@@ -153,7 +153,10 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
 
       <section className="coupon-detail-qr" aria-label="Coupon QR code">
         <h2>QR Code</h2>
-        <div ref={qrRef} className="coupon-qr-code"><QRCodeSVG value={verificationUrl || coupon.coupon_code} size={168} level="M" /></div>
+        <div ref={qrRef} className="coupon-qr-code">
+          <QRCodeSVG value={verificationUrl || coupon.coupon_code} size={168} level="M" />
+          <p className="coupon-qr-unique-id">{coupon.coupon_code}</p>
+        </div>
       </section>
 
       <section className="coupon-detail-actions" aria-label="Coupon actions">
