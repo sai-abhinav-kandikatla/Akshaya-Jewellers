@@ -48,18 +48,30 @@ export default function DashboardShell({
       && pathname !== '/dashboard/coupons/create');
 
   return (
-    <div className="dashboard-layout min-h-screen bg-gray-50 flex flex-col">
+    <div className="dashboard-layout min-h-screen bg-[#FAF7F2] flex flex-col">
       {/* Mobile Top Header (Fixed at Top) */}
-      <header className="dashboard-mobile-header md:hidden">
-        <div className="mobile-header-row">
-          <Link href="/dashboard" className="mobile-brand" aria-label="Akshaya Jewellers dashboard">
-            <img src="/logo.png" alt="Logo" />
-            <span className="mobile-brand-name">Akshaya Jewellers</span>
+      <header className="dashboard-mobile-header md:hidden bg-[#24140E] border-b border-[#4E342E]/80 shadow-md">
+        <div className="mobile-header-row flex items-center justify-between px-4 py-2.5">
+          <Link href="/dashboard" className="flex items-center gap-2.5" aria-label="Akshaya Jewellers dashboard">
+            <img src="/logo.png" alt="Logo" className="w-10 h-10 rounded-full border border-[#D4AF37] object-cover shadow-sm" />
+            <div>
+              <h1 className="font-serif font-bold text-[#ECC870] text-lg leading-tight">Akshaya Jewellers</h1>
+              <p className="text-[11px] text-[#C5AA82] leading-tight mt-0.5">Digital Gift Coupon System</p>
+            </div>
           </Link>
           <div className="mobile-header-actions">
-            <button onClick={handleLogout} className="mobile-logout" aria-label="Log out" title="Log out">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <button 
+              onClick={handleLogout} 
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#3E2723]/90 border border-[#8D6E63]/70 text-white text-xs font-semibold shadow-xs hover:bg-[#4E342E] transition-all" 
+              aria-label="Log out" 
+              title="Click to Log out"
+            >
+              <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">
+                👤
+              </div>
+              <span>Admin</span>
+              <svg className="w-3 h-3 text-gray-300 ml-0.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
               </svg>
             </button>
           </div>
@@ -101,30 +113,50 @@ export default function DashboardShell({
         </aside>
 
         {/* Main Content Area */}
-        <main className="main-content flex-1 md:ml-[260px] min-h-screen bg-gray-50 overflow-y-auto">
+        <main className="main-content flex-1 md:ml-[260px] min-h-screen bg-[#FAF7F2] overflow-y-auto">
           {children}
         </main>
       </div>
 
-      {/* Mobile Fixed Bottom Navigation (Fixed at Bottom Sibling) */}
-      <nav className="mobile-primary-nav md:hidden" aria-label="Primary navigation">
-        {mobilePrimaryActions.map((item) => {
-          const isActive = isRouteActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-label={item.label}
-              aria-current={isActive ? 'page' : undefined}
-              className={`mobile-primary-action mobile-primary-action--${item.theme}${isActive ? ' is-active' : ''}`}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
-                {item.icon}
-              </svg>
-              <span>{item.name}</span>
-            </Link>
-          );
-        })}
+      {/* Mobile Fixed Bottom Navigation (Mockup Match) */}
+      <nav className="mobile-primary-nav md:hidden fixed bottom-0 left-0 right-0 bg-[#FFFDF9]/98 backdrop-blur-md border-t border-[#F0E6D2] z-50 px-2 py-1 shadow-lg" aria-label="Primary navigation">
+        <div className="flex items-center justify-around max-w-md mx-auto">
+          {mobilePrimaryActions.map((item) => {
+            const isActive = isRouteActive(item.href);
+            if (item.name === 'Create') {
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="flex flex-col items-center -mt-5 group"
+                >
+                  <div className="w-13 h-13 rounded-full bg-gradient-to-br from-[#E2BA49] to-[#B8860B] text-white flex items-center justify-center shadow-lg border-3 border-white group-hover:scale-105 transition-transform">
+                    <svg className="w-6 h-6 stroke-[3]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-700 mt-0.5">Create</span>
+                </Link>
+              );
+            }
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex flex-col items-center py-1.5 px-3 rounded-2xl transition-all ${
+                  isActive 
+                    ? 'bg-[#FCEECB] text-[#7A5805] font-bold' 
+                    : 'text-gray-500 hover:text-gray-900 font-medium'
+                }`}
+              >
+                <svg className="w-5 h-5 mb-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={isActive ? 2.5 : 2}>
+                  {item.icon}
+                </svg>
+                <span className="text-[10px]">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );
