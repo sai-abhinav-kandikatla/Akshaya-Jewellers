@@ -46,10 +46,14 @@ ADMIN_USERNAME=Akshaya_Jewellers
 ADMIN_PASSWORD=replace_with_a_strong_password
 ADMIN_SESSION_SECRET=replace_with_a_random_secret
 CRON_SECRET=replace_with_a_random_secret_at_least_16_characters
+MICROSOFT_GRAPH_ACCESS_TOKEN=your_files_readwrite_graph_access_token
+ONEDRIVE_EXCEL_FILE_ID=your_onedrive_business_or_sharepoint_workbook_item_id
 ```
 
 > ⚠️ Never commit `.env.local` to version control!
 > Keep admin credentials and the session secret server-only. Do not add the `NEXT_PUBLIC_` prefix to them.
+
+Excel sync writes to the `.xlsx` workbook identified by `ONEDRIVE_EXCEL_FILE_ID` in the Microsoft drive associated with the Graph token. The workbook must contain a table named `CouponsTable`, and the token needs Microsoft Graph `Files.ReadWrite` access. No Excel file is created in this project folder. The Graph Excel API requires a OneDrive for Business or SharePoint workbook; personal OneDrive isn't supported. Access tokens expire, so replace the token when Microsoft expires it. Writes that fail remain queued and the scheduled job retries them automatically.
 
 ---
 
@@ -101,6 +105,8 @@ After creating your admin account, to prevent others from signing up:
    - `ADMIN_PASSWORD`
    - `ADMIN_SESSION_SECRET`
    - `CRON_SECRET`
+   - `MICROSOFT_GRAPH_ACCESS_TOKEN`
+   - `ONEDRIVE_EXCEL_FILE_ID`
    Keep the admin variables server-only; do not prefix them with `NEXT_PUBLIC_`.
 4. Make sure they apply to the **Production** environment (and Preview too if you test there).
 5. Deploy or redeploy after saving the variables. Existing Vercel deployments do not receive environment-variable changes.

@@ -31,32 +31,45 @@ export async function GET(request: Request) {
     return Response.json({ success: false, error: 'Unable to load expired coupons.' }, { status: 500 });
   }
 
-  if (!dueCoupons?.length) {
-    return Response.json({ success: true, today, expired: 0, excelUpdated: 0, excelPending: 0 });
+  let expiredCount = 0;
+  if (dueCoupons?.length) {
+    const { data: expiredCoupons, error: updateError } = await supabase
+      .from('coupons')
+      .update({ status: 'EXPIRED', excel_sync_status: 'PENDING', excel_synced_at: null })
+      .in('id', dueCoupons.map((coupon) => coupon.id))
+      .eq('status', 'ACTIVE')
+      .lt('valid_until', today)
+      .select('id');
+
+    if (updateError) {
+      console.error('Coupon expiry update failed:', updateError);
+      return Response.json({ success: false, error: 'Unable to expire coupons.' }, { status: 500 });
+    }
+    expiredCount = expiredCoupons?.length || 0;
   }
 
-  const { data: expiredCoupons, error: updateError } = await supabase
+  const { data: couponsToSync, error: pendingQueryError } = await supabase
     .from('coupons')
-    .update({ status: 'EXPIRED', excel_sync_status: 'PENDING', excel_synced_at: null })
-    .in('id', dueCoupons.map((coupon) => coupon.id))
-    .eq('status', 'ACTIVE')
-    .lt('valid_until', today)
-    .select('*');
+    .select('*')
+    .in('excel_sync_status', ['PENDING', 'ERROR'])
+    .order('created_at', { ascending: true })
+    .limit(BATCH_SIZE);
 
-  if (updateError) {
-    console.error('Coupon expiry update failed:', updateError);
-    return Response.json({ success: false, error: 'Unable to expire coupons.' }, { status: 500 });
+  if (pendingQueryError) {
+    console.error('Excel retry queue query failed:', pendingQueryError);
+    return Response.json({ success: false, error: 'Unable to load pending Excel updates.' }, { status: 500 });
   }
 
-  const couponsToSync = expiredCoupons || [];
-  const syncResults = await syncCouponsToExcel(couponsToSync);
+  const retryBatch = couponsToSync || [];
+  const syncResults = await syncCouponsToExcel(retryBatch);
   const excelUpdated = syncResults.filter((result) => result.success).length;
 
   return Response.json({
     success: true,
     today,
-    expired: couponsToSync.length,
+    expired: expiredCount,
+    attempted: retryBatch.length,
     excelUpdated,
-    excelPending: couponsToSync.length - excelUpdated,
+    excelPending: retryBatch.length - excelUpdated,
   });
 }

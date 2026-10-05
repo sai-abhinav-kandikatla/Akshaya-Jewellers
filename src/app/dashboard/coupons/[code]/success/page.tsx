@@ -96,7 +96,7 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
     : excelStatus === 'ERROR'
       ? 'Sync failed'
       : excelStatus === 'PENDING'
-        ? 'Pending setup'
+        ? 'Retry queued'
         : 'Not synced';
 
   return (

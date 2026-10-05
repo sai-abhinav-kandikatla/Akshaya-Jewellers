@@ -270,14 +270,14 @@ async function syncChangedCouponStatus(couponId: string, status: 'CLAIMED' | 'CA
 
     if (error || !coupon) {
       console.error('Failed to load changed coupon for Excel sync:', error);
-      return 'Excel update is pending. Use Sync Now in Settings to retry.';
+      return 'Excel update is pending and will retry automatically. Sync Now in Settings can retry sooner.';
     }
 
     const result = await syncCouponToExcel(coupon);
-    return result.success ? null : 'Excel update is pending. Use Sync Now in Settings to retry.';
+    return result.success ? null : 'Excel update is pending and will retry automatically. Sync Now in Settings can retry sooner.';
   } catch (error) {
     console.error('Failed to sync changed coupon status to Excel:', error);
-    return 'Excel update is pending. Use Sync Now in Settings to retry.';
+    return 'Excel update is pending and will retry automatically. Sync Now in Settings can retry sooner.';
   }
 }
 
@@ -362,7 +362,7 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
     const syncResult = await syncCouponToExcel(updated);
     return {
       success: true,
-      message: syncResult.success ? 'Coupon redeemed successfully and Excel was updated.' : 'Coupon redeemed successfully. Excel update is pending; use Sync Now in Settings to retry.',
+      message: syncResult.success ? 'Coupon redeemed successfully and Excel was updated.' : 'Coupon redeemed successfully. Excel update is pending and will retry automatically.',
     };
   } catch (error: any) {
     console.error('claimCoupon exception:', error);
@@ -432,7 +432,7 @@ export async function cancelCoupon(identifier: string, reason?: string): Promise
     const syncResult = await syncCouponToExcel(updated);
     return {
       success: true,
-      message: syncResult.success ? 'Coupon cancelled and Excel was updated.' : 'Coupon cancelled. Excel update is pending; use Sync Now in Settings to retry.',
+      message: syncResult.success ? 'Coupon cancelled and Excel was updated.' : 'Coupon cancelled. Excel update is pending and will retry automatically.',
     };
   } catch (error: any) {
     console.error('cancelCoupon exception:', error);
