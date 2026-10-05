@@ -260,6 +260,7 @@ export async function getCouponByCode(code: string): Promise<CouponWithDisplaySt
 }
 
 async function syncChangedCouponStatus(couponId: string, status: 'CLAIMED' | 'CANCELLED') {
+  const retryMessage = 'Excel sync is queued for automatic retry.';
   try {
     const supabase = createAdminClient();
     const { data: coupon, error } = await supabase
@@ -272,14 +273,15 @@ async function syncChangedCouponStatus(couponId: string, status: 'CLAIMED' | 'CA
 
     if (error || !coupon) {
       console.error('Failed to load changed coupon for Excel sync:', error);
-      return 'Excel update is pending and will retry automatically. Sync Now in Settings can retry sooner.';
+      return `${error?.message || 'Could not load the updated coupon for Excel sync.'} Excel sync could not be queued. Retry it from Settings after fixing workbook access.`;
     }
 
     const result = await syncCouponToExcel(coupon);
-    return result.success ? null : 'Excel update is pending and will retry automatically. Sync Now in Settings can retry sooner.';
+    return result.success ? null : `${result.error || 'Excel sync failed.'} ${retryMessage}`;
   } catch (error) {
     console.error('Failed to sync changed coupon status to Excel:', error);
-    return 'Excel update is pending and will retry automatically. Sync Now in Settings can retry sooner.';
+    const detail = error instanceof Error ? error.message : 'Excel sync failed.';
+    return `${detail} Excel sync could not be queued. Retry it from Settings after fixing workbook access.`;
   }
 }
 
@@ -330,13 +332,28 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
     // Try RPC claim_coupon first
     const { data: rpcResult, error: rpcError } = await supabase.rpc('claim_coupon', { p_coupon_code: coupon.coupon_code });
     if (!rpcError) {
-      if (rpcResult?.success === false) {
-        return { success: false, error: rpcResult.message || 'This coupon could not be redeemed.' };
+      if (rpcResult?.success !== true) {
+        return { success: false, error: rpcResult?.message || 'The coupon claim was not confirmed. Please verify its status and try again.' };
       }
+
+      const { data: savedCoupon, error: statusError } = await supabase
+        .from('coupons')
+        .select('status')
+        .eq('id', coupon.id)
+        .maybeSingle();
+      if (!statusError && savedCoupon && savedCoupon.status !== 'CLAIMED') {
+        return { success: false, error: 'The coupon is still active. Its claim was not saved; refresh and try again.' };
+      }
+
       const syncWarning = await syncChangedCouponStatus(coupon.id, 'CLAIMED');
+      const warning = [
+        statusError ? 'The claim was accepted, but the updated status could not be reloaded.' : '',
+        syncWarning ? `Excel sync: ${syncWarning}` : '',
+      ].filter(Boolean).join(' ');
       return {
         success: true,
-        message: syncWarning ? `Coupon redeemed successfully. ${syncWarning}` : 'Coupon redeemed successfully and Excel was updated.',
+        message: syncWarning ? 'Coupon redeemed successfully.' : 'Coupon redeemed successfully and Excel was updated.',
+        ...(warning ? { warning } : {}),
       };
     }
 
@@ -364,7 +381,8 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
     const syncResult = await syncCouponToExcel(updated);
     return {
       success: true,
-      message: syncResult.success ? 'Coupon redeemed successfully and Excel was updated.' : 'Coupon redeemed successfully. Excel update is pending and will retry automatically.',
+      message: syncResult.success ? 'Coupon redeemed successfully and Excel was updated.' : 'Coupon redeemed successfully.',
+      ...(!syncResult.success ? { warning: `Excel sync: ${syncResult.error || 'Update queued for automatic retry.'}` } : {}),
     };
   } catch (error: any) {
     console.error('claimCoupon exception:', error);

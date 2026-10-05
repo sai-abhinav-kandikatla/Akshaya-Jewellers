@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { claimCoupon } from '@/app/actions/coupons';
 import { formatCurrency } from '@/lib/utils/formatters';
 
@@ -11,10 +12,13 @@ interface PublicClaimButtonProps {
 }
 
 export default function PublicClaimButton({ couponCode, customerName, couponValue }: PublicClaimButtonProps) {
+  const router = useRouter();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [claimedSuccess, setClaimedSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [syncWarning, setSyncWarning] = useState('');
 
   async function handleClaim() {
     setIsClaiming(true);
@@ -23,11 +27,20 @@ export default function PublicClaimButton({ couponCode, customerName, couponValu
       const res = await claimCoupon(couponCode);
       if (res.success) {
         setClaimedSuccess(true);
+        setSuccessMessage(res.message || 'Coupon redeemed successfully.');
+        setSyncWarning(res.warning || '');
         setShowConfirmModal(false);
-        // Refresh page to show updated status
-        window.location.reload();
+        router.refresh();
       } else {
-        setErrorMessage(typeof res.error === 'string' ? res.error : 'Failed to claim coupon');
+        const message = typeof res.error === 'string' ? res.error : 'Failed to claim coupon';
+        if (/already (?:been )?(?:claimed|redeemed)/i.test(message)) {
+          setClaimedSuccess(true);
+          setSuccessMessage(message);
+          setShowConfirmModal(false);
+          router.refresh();
+        } else {
+          setErrorMessage(message);
+        }
       }
     } catch (err: unknown) {
       setErrorMessage((err as Error).message || 'An unexpected error occurred');
@@ -38,8 +51,13 @@ export default function PublicClaimButton({ couponCode, customerName, couponValu
 
   if (claimedSuccess) {
     return (
-      <div className="p-4 bg-green-50 text-green-800 rounded-2xl border border-green-200 text-center font-bold">
-        ✓ COUPON REDEEMED SUCCESSFULLY
+      <div className="space-y-2 rounded-2xl border border-green-200 bg-green-50 p-4 text-center text-green-900" role="status" aria-live="polite">
+        <p className="font-bold">✓ {successMessage || 'Coupon redeemed successfully.'}</p>
+        {syncWarning && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-xs font-medium text-amber-900" role="alert">
+            The coupon is claimed. Excel needs attention: {syncWarning}
+          </p>
+        )}
       </div>
     );
   }
@@ -78,7 +96,7 @@ export default function PublicClaimButton({ couponCode, customerName, couponValu
             </div>
 
             {errorMessage && (
-              <div className="p-3 bg-red-50 text-red-700 text-xs font-semibold rounded-xl border border-red-200 text-center">
+              <div role="alert" aria-live="assertive" className="p-3 bg-red-50 text-red-700 text-xs font-semibold rounded-xl border border-red-200 text-center">
                 {errorMessage}
               </div>
             )}

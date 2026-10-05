@@ -16,6 +16,7 @@ export default function VerifyCouponPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [toast, setToast] = useState<{ id: number, message: string, type: 'success' | 'error' } | null>(null);
+  const [excelWarning, setExcelWarning] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.toUpperCase();
@@ -42,6 +43,7 @@ export default function VerifyCouponPage() {
     setIsLoading(true);
     setError('');
     setCoupon(null);
+    setExcelWarning('');
 
     try {
       const data = await getCouponByCode(searchCode);
@@ -65,17 +67,21 @@ export default function VerifyCouponPage() {
     try {
       const result = await claimCoupon(coupon.id);
       if (!result.success) {
+        const latest = await getCouponByCode(coupon.coupon_code).catch(() => null);
+        if (latest) setCoupon(latest);
         showToast(result.error || result.message || 'Failed to claim coupon.', 'error');
         return;
       }
 
       // Refresh coupon data
       const updated = await getCouponByCode(coupon.coupon_code);
-      if (updated) {
+      if (updated && computeDisplayStatus(updated) === 'CLAIMED') {
         setCoupon(updated);
+        setExcelWarning(result.warning || '');
         showToast('Coupon claimed successfully!', 'success');
       } else {
-        showToast('Coupon was claimed, but its status could not be refreshed. Verify it again.', 'error');
+        if (updated) setCoupon(updated);
+        showToast('The claim was not confirmed. This coupon still appears active; refresh and try again.', 'error');
       }
     } catch (err: any) {
       showToast(err.message || 'Failed to claim coupon', 'error');
@@ -100,7 +106,7 @@ export default function VerifyCouponPage() {
     <div className="dashboard-page verify-page">
       {toast && (
         <div className="toast-container">
-          <div role={toast.type === 'error' ? 'alert' : 'status'} className={`toast toast-${toast.type}`}>{toast.message}</div>
+          <div role={toast.type === 'error' ? 'alert' : 'status'} aria-live={toast.type === 'error' ? 'assertive' : 'polite'} className={`toast toast-${toast.type}`}>{toast.message}</div>
         </div>
       )}
 
@@ -176,6 +182,12 @@ export default function VerifyCouponPage() {
 
       {coupon && !isLoading && (
         <div className="card result-card verify-result-card" style={{ padding: '2rem', borderTop: '4px solid #d4af37' }}>
+          {excelWarning && (
+            <div role="alert" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p className="font-bold">The coupon is claimed; Excel sync needs attention.</p>
+              <p className="mt-1">{excelWarning}</p>
+            </div>
+          )}
           {(() => {
             const status = computeDisplayStatus(coupon);
             return (
@@ -219,7 +231,7 @@ export default function VerifyCouponPage() {
                   )}
                   {status === 'CLAIMED' && (
                     <div>
-                      <p style={{ color: '#166534', fontWeight: 'bold', fontSize: '1.1rem' }}>This coupon has already been claimed.</p>
+                      <p style={{ color: '#166534', fontWeight: 'bold', fontSize: '1.1rem' }}>This coupon is claimed.</p>
                       <p style={{ marginTop: '0.5rem' }}>Claimed on: {coupon.claimed_at ? formatDateTime(coupon.claimed_at) : 'Unknown'}</p>
                     </div>
                   )}

@@ -29,7 +29,11 @@ function excelValues(coupon: Coupon) {
 
 async function responseError(response: Response) {
   const data = await response.json().catch(() => null) as { error?: { message?: string } } | null;
-  return data?.error?.message || `Microsoft Excel sync failed (${response.status}).`;
+  const message = data?.error?.message || `Microsoft Excel sync failed (${response.status}).`;
+  if (response.status === 404 || /(?:worksheet|sheet|table|resource).*(?:not found|could not find|does not exist)|(?:not found|could not find|does not exist).*(?:worksheet|sheet|table|resource)/i.test(message)) {
+    return `Excel workbook or required table "CouponsTable" was not found. Check ONEDRIVE_EXCEL_FILE_ID and confirm the workbook contains a table named CouponsTable. (${message})`;
+  }
+  return message;
 }
 
 async function loadExcelRows(token: string, fileId: string): Promise<ExcelTableRow[]> {

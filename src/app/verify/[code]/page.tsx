@@ -99,9 +99,10 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
             </span>
 
             {status === 'CLAIMED' && (
-              <p className="text-xs font-semibold text-green-700 mt-2">
-                ✓ This coupon has been successfully redeemed on {coupon.claimed_at ? formatDateTime(coupon.claimed_at) : 'file'}.
-              </p>
+              <div className="space-y-1 text-xs font-semibold text-green-700" role="status">
+                <p>✓ This coupon is claimed.</p>
+                <p>Claimed on: {coupon.claimed_at ? formatDateTime(coupon.claimed_at) : 'Unknown'}</p>
+              </div>
             )}
             {status === 'EXPIRED' && (
               <p className="text-xs font-semibold text-red-700 mt-2">

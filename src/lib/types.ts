@@ -128,5 +128,6 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   coupon_code?: string;
   created?: boolean;
+  warning?: string;
 }
 
