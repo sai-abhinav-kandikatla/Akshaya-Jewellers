@@ -7,7 +7,7 @@ import { getCouponByCode } from '@/app/actions/coupons';
 import { logAuditEvent } from '@/app/actions/audit';
 import { formatCurrency, formatIndianDate } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
-import { generateWhatsAppURL } from '@/lib/utils/whatsapp';
+import { generateWhatsAppURL, generateWhatsAppMessage } from '@/lib/utils/whatsapp';
 import { Coupon } from '@/lib/types';
 
 export default function CouponSuccessPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
@@ -52,14 +52,38 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
   };
 
   const handleWhatsApp = async () => {
-    if (coupon) {
-      const verificationUrl = `${window.location.origin}/verify/${coupon.coupon_code}`;
-      const url = generateWhatsAppURL(coupon, verificationUrl);
-      window.open(url, '_blank');
-      void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, {
-        phone_number: coupon.phone_number
-      }).catch((auditError) => console.error('WhatsApp audit logging failed:', auditError));
+    if (!coupon) return;
+    const message = generateWhatsAppMessage(coupon);
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(coupon.coupon_code)}`;
+
+    // Try Web Share with image attachment on mobile
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        const response = await fetch(qrImageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `${coupon.coupon_code}-QR.png`, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            text: message,
+            title: `Akshaya Jewellery - ${coupon.coupon_code}`,
+          });
+          void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, {
+            phone_number: coupon.phone_number,
+            shared_with_file: true
+          }).catch(() => {});
+          return;
+        }
+      } catch {
+        // Fall back to wa.me if user cancelled share or file sharing is not supported
+      }
     }
+
+    const url = generateWhatsAppURL(coupon);
+    window.open(url, '_blank');
+    void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, {
+      phone_number: coupon.phone_number
+    }).catch((auditError) => console.error('WhatsApp audit logging failed:', auditError));
   };
 
   if (isLoading) {

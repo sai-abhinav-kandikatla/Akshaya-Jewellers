@@ -1,9 +1,8 @@
 // ==============================================================================
 // WhatsApp Message Generator
-// Uses free wa.me pre-filled message links
 // ==============================================================================
 
-import { formatCurrency, formatDateIndian } from './formatters';
+import { formatCurrency } from './formatters';
 
 export interface WhatsAppMessageData {
   customerName?: string;
@@ -21,24 +20,30 @@ export interface WhatsAppMessageData {
   valid_until?: string;
 }
 
+export function formatVoucherDate(dateStr: string): string {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr + 'T00:00:00+05:30');
+    if (isNaN(date.getTime())) return dateStr;
+    const d = String(date.getDate()).padStart(2, '0');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const m = months[date.getMonth()];
+    const y = date.getFullYear();
+    return `${d} ${m} ${y}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 /**
- * Generate the WhatsApp message text for a coupon
+ * Generate the exact WhatsApp message text for a coupon
  */
-export function generateWhatsAppMessage(data: any, verificationUrl?: string): string {
+export function generateWhatsAppMessage(data: any): string {
   const name = data.customerName || data.customer_name || 'Valued Customer';
   const val = data.couponValue ?? data.coupon_value ?? data.value ?? 0;
   const code = data.couponCode || data.coupon_code || '';
   const from = data.validFrom || data.valid_from || '';
   const until = data.validUntil || data.valid_until || '';
-
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(code)}`;
-
-  let linksSection = '';
-  if (verificationUrl) {
-    linksSection = `\n📱 *Digital Voucher & QR Code:*\n${verificationUrl}\n\n📷 *Direct QR Code:*\n${qrImageUrl}\n`;
-  } else if (code) {
-    linksSection = `\n📷 *Direct QR Code:*\n${qrImageUrl}\n`;
-  }
 
   return `✨ *AKSHAYA JEWELLERS* ✨
 *Exclusive Gift Coupon*
@@ -46,22 +51,21 @@ export function generateWhatsAppMessage(data: any, verificationUrl?: string): st
 Dear ${name},
 
 Warm greetings from Akshaya Jewellers! 🌟
-We are delighted to present you with an exclusive Gift Coupon.
 
 💎 *Coupon Details:*
 • Coupon Code: *${code}*
 • Coupon Value: *${formatCurrency(val)}*
-• Valid From: ${formatDateIndian(from)}
-• Valid Until: ${formatDateIndian(until)}
-${linksSection}
+• Valid From: ${formatVoucherDate(from)}
+• Valid Until: ${formatVoucherDate(until)}
+
 Thank you for choosing Akshaya Jewellers! 💍✨`;
 }
 
 /**
  * Generate a WhatsApp wa.me URL with pre-filled message
  */
-export function generateWhatsAppURL(data: any, verificationUrl?: string): string {
-  const message = generateWhatsAppMessage(data, verificationUrl);
+export function generateWhatsAppURL(data: any): string {
+  const message = generateWhatsAppMessage(data);
   const rawPhone = data.phoneNumber || data.phone_number || '';
   
   // Normalize phone number to international format

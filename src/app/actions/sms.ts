@@ -34,7 +34,7 @@ export async function sendCouponSMS(input: SendSMSInput): Promise<ApiResponse> {
       couponValue: input.couponValue,
       validFrom: input.validFrom,
       validUntil: input.validUntil,
-    }, input.verificationUrl);
+    });
 
     // 1. Check for Fast2SMS API Key (India SMS Gateway)
     const fast2smsKey = process.env.FAST2SMS_API_KEY;

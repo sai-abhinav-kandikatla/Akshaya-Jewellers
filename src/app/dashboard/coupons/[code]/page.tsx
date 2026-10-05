@@ -8,7 +8,7 @@ import { getCampaignById } from '@/app/actions/campaigns';
 import { getCouponAuditHistory } from '@/app/actions/audit';
 import { formatCurrency, formatIndianDate, formatDateTime } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
-import { generateWhatsAppURL } from '@/lib/utils/whatsapp';
+import { generateWhatsAppURL, generateWhatsAppMessage } from '@/lib/utils/whatsapp';
 import { Coupon, AuditEvent } from '@/lib/types';
 
 export default function CouponDetailPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
@@ -101,11 +101,32 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
     }
   };
 
-  const handleWhatsApp = () => {
-    if (coupon) {
-      const url = generateWhatsAppURL(coupon, `${window.location.origin}/verify/${coupon.coupon_code}`);
-      window.open(url, '_blank');
+  const handleWhatsApp = async () => {
+    if (!coupon) return;
+    const message = generateWhatsAppMessage(coupon);
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(coupon.coupon_code)}`;
+
+    // Try Web Share with image attachment on mobile
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        const response = await fetch(qrImageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `${coupon.coupon_code}-QR.png`, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            text: message,
+            title: `Akshaya Jewellery - ${coupon.coupon_code}`,
+          });
+          return;
+        }
+      } catch {
+        // Fall back to wa.me if user cancelled share or file sharing is not supported
+      }
     }
+
+    const url = generateWhatsAppURL(coupon);
+    window.open(url, '_blank');
   };
 
   if (isLoading) return (

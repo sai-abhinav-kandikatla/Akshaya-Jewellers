@@ -19,7 +19,7 @@ export async function isWhatsAppConfigured(): Promise<boolean> {
   return status.configured;
 }
 
-export async function sendWhatsAppCloudAPI(coupon: Coupon, verificationUrl?: string): Promise<ApiResponse> {
+export async function sendWhatsAppCloudAPI(coupon: Coupon): Promise<ApiResponse> {
   try {
     if (!(await isAdminAuthenticated())) return { success: false, error: 'Unauthorized.' };
     if (!coupon || typeof coupon.id !== 'string' || !isUuid(coupon.id)) {
@@ -44,15 +44,13 @@ export async function sendWhatsAppCloudAPI(coupon: Coupon, verificationUrl?: str
     if (rawPhone.length === 10) rawPhone = '91' + rawPhone;
     if (!/^[1-9]\d{9,14}$/.test(rawPhone)) return { success: false, error: 'Coupon has an invalid mobile number.' };
 
-    const publicUrl = process.env.NEXT_PUBLIC_APP_URL
-      || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '');
-    const safeVerificationUrl = verificationUrl || (publicUrl ? `${publicUrl.replace(/\/$/, '')}/verify/${encodeURIComponent(savedCoupon.coupon_code)}` : undefined);
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(savedCoupon.coupon_code)}`;
     const wasAlreadySent = savedCoupon.whatsapp_status === 'SENT';
-    const messageText = generateWhatsAppMessage(savedCoupon, safeVerificationUrl);
+    const messageText = generateWhatsAppMessage(savedCoupon);
 
     if (token && phoneId) {
-      // Official WhatsApp Business Cloud API Endpoint
-      const apiRes = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+      // Official WhatsApp Business Cloud API Endpoint — Send QR image with message caption
+      let apiRes = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -61,11 +59,32 @@ export async function sendWhatsAppCloudAPI(coupon: Coupon, verificationUrl?: str
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           to: rawPhone,
-          type: 'text',
-          text: { body: messageText },
+          type: 'image',
+          image: {
+            link: qrImageUrl,
+            caption: messageText,
+          },
         }),
         signal: AbortSignal.timeout(10000),
       });
+
+      // Fallback to text message if image type is not accepted by phone number
+      if (!apiRes.ok) {
+        apiRes = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: rawPhone,
+            type: 'text',
+            text: { body: messageText },
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+      }
 
       const responseData = await apiRes.json();
 
