@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency, formatIndianDate, formatDateTime } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { isUuid } from '@/lib/utils/identifiers';
+import CouponQRCode from '@/components/CouponQRCode';
 
 export default async function PublicVerifyPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
   const supabase = createAdminClient();
@@ -84,6 +85,15 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
               <span className="text-gray-400 block text-[10px] uppercase">Valid Until</span>
               <span className="font-semibold text-gray-800">{formatIndianDate(coupon.valid_until)}</span>
             </div>
+          </div>
+
+          {/* Coupon QR Code for In-Store Scanning */}
+          <div className="flex flex-col items-center justify-center py-1">
+            <CouponQRCode 
+              value={coupon.coupon_code} 
+              size={175} 
+              label={status === 'ACTIVE' ? 'Scan at Akshaya Jewellery checkout' : undefined} 
+            />
           </div>
 
           {/* Verification Status Display (Master Prompt Section 28-30) */}

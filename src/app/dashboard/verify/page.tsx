@@ -5,6 +5,7 @@ import { getCouponByCode, claimCoupon } from '@/app/actions/coupons';
 import { formatCurrency, formatIndianDate, formatDateTime } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { Coupon } from '@/lib/types';
+import QRScanner from '@/components/QRScanner';
 
 export default function VerifyCouponPage() {
   const [code, setCode] = useState('');
@@ -12,6 +13,7 @@ export default function VerifyCouponPage() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isScanningQR, setIsScanningQR] = useState(false);
   
   const [modalOpen, setModalOpen] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
@@ -27,18 +29,7 @@ export default function VerifyCouponPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleVerify = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!code.trim()) return;
-
-    // Auto-format check (prefix AKS- if needed)
-    let searchCode = code.trim();
-    if (searchCode.match(/^\d+$/) || (!searchCode.startsWith('AKS-') && searchCode.length > 0)) {
-      if (!searchCode.startsWith('AKS-')) {
-        searchCode = `AKS-${searchCode}`;
-      }
-    }
-
+  const executeVerification = async (searchCode: string) => {
     setIsLoading(true);
     setError('');
     setCoupon(null);
@@ -47,7 +38,7 @@ export default function VerifyCouponPage() {
       const data = await getCouponByCode(searchCode);
       if (data) {
         setCoupon(data);
-        setCode(searchCode); // Update input to formatted code
+        setCode(searchCode);
       } else {
         setError('Coupon not found. Please check the code and try again.');
       }
@@ -56,6 +47,38 @@ export default function VerifyCouponPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerify = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!code.trim()) return;
+
+    let searchCode = code.trim();
+    if (searchCode.match(/^\d+$/) || (!searchCode.startsWith('AKS-') && searchCode.length > 0)) {
+      if (!searchCode.startsWith('AKS-')) {
+        searchCode = `AKS-${searchCode}`;
+      }
+    }
+    await executeVerification(searchCode);
+  };
+
+  const handleScanCode = (scannedText: string) => {
+    setIsScanningQR(false);
+    if (!scannedText) return;
+
+    let raw = scannedText.trim();
+    const urlMatch = raw.match(/\/verify\/([A-Za-z0-9_-]+)/i);
+    if (urlMatch) {
+      raw = urlMatch[1];
+    }
+    let searchCode = raw.toUpperCase();
+    if (searchCode.match(/^\d+$/) || (!searchCode.startsWith('AKS-') && searchCode.length > 0)) {
+      if (!searchCode.startsWith('AKS-')) {
+        searchCode = `AKS-${searchCode}`;
+      }
+    }
+    setCode(searchCode);
+    executeVerification(searchCode);
   };
 
   const handleClaim = async () => {
@@ -135,29 +158,53 @@ export default function VerifyCouponPage() {
         <p className="text-muted" style={{ marginTop: '0.5rem' }}>Enter a coupon code to check its validity and status.</p>
       </div>
 
-      <div className="card verify-search-card">
-        <form onSubmit={handleVerify} className="verify-form">
+      <div className="card verify-search-card p-4 space-y-4">
+        {/* Quick QR Scanner Action Button */}
+        <button
+          type="button"
+          onClick={() => setIsScanningQR(true)}
+          className="btn btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#2d2d2d] text-[#d4af37] border-2 border-[#d4af37] rounded-2xl shadow-md transition-transform active:scale-[0.99]"
+        >
+          <span className="text-xl">📷</span>
+          <span>SCAN QR CODE WITH CAMERA</span>
+        </button>
+
+        <div className="flex items-center gap-3">
+          <div className="h-px bg-gray-200 flex-1" />
+          <span className="text-[11px] uppercase text-gray-400 font-semibold tracking-wider">or enter coupon code</span>
+          <div className="h-px bg-gray-200 flex-1" />
+        </div>
+
+        <form onSubmit={handleVerify} className="verify-form space-y-3">
           <label className="sr-only" htmlFor="verifyCouponCode">Coupon code</label>
           <input
             type="text"
             id="verifyCouponCode"
-            className="verify-input verify-code-input form-input"
+            className="verify-input verify-code-input form-input text-center tracking-widest font-mono text-lg"
             value={code}
             onChange={handleInputChange}
-            placeholder="Enter Coupon Code (e.g., AKS-1234)"
+            placeholder="AKS-XXXXXX"
             autoCapitalize="characters"
             autoComplete="off"
             spellCheck={false}
           />
           <button 
             type="submit" 
-            className="btn btn-primary btn-lg verify-submit"
+            className="btn btn-primary btn-lg verify-submit w-full"
             disabled={isLoading || !code.trim()}
           >
             {isLoading ? 'VERIFYING...' : 'VERIFY COUPON'}
           </button>
         </form>
       </div>
+
+      {/* Camera QR Scanner Modal */}
+      {isScanningQR && (
+        <QRScanner
+          onScan={handleScanCode}
+          onClose={() => setIsScanningQR(false)}
+        />
+      )}
 
       {isLoading && (
         <div role="status" style={{ textAlign: 'center', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>

@@ -31,6 +31,15 @@ export function generateWhatsAppMessage(data: any, verificationUrl?: string): st
   const from = data.validFrom || data.valid_from || '';
   const until = data.validUntil || data.valid_until || '';
 
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(code)}`;
+
+  let linksSection = '';
+  if (verificationUrl) {
+    linksSection = `\n📱 *Digital Voucher & QR Code:*\n${verificationUrl}\n\n📷 *Direct QR Code:*\n${qrImageUrl}\n`;
+  } else if (code) {
+    linksSection = `\n📷 *Direct QR Code:*\n${qrImageUrl}\n`;
+  }
+
   return `✨ *AKSHAYA JEWELLERS* ✨
 *Exclusive Gift Coupon*
 
@@ -40,13 +49,11 @@ Warm greetings from Akshaya Jewellers! 🌟
 We are delighted to present you with an exclusive Gift Coupon.
 
 💎 *Coupon Details:*
-• Coupon Code: ${code}
-• Coupon Value: ${formatCurrency(val)}
+• Coupon Code: *${code}*
+• Coupon Value: *${formatCurrency(val)}*
 • Valid From: ${formatDateIndian(from)}
 • Valid Until: ${formatDateIndian(until)}
-${verificationUrl ? `\nVerify coupon: ${verificationUrl}` : ''}
-
-
+${linksSection}
 Thank you for choosing Akshaya Jewellers! 💍✨`;
 }
 
