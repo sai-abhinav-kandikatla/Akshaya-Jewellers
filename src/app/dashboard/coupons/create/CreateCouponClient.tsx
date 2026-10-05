@@ -7,16 +7,15 @@ import { createCoupon } from '@/app/actions/coupons';
 import { validateCouponForm } from '@/lib/utils/validators';
 import { getTodayIST, formatCurrency } from '@/lib/utils/formatters';
 import BottomSheet from '@/components/BottomSheet';
-import type { Campaign, Coupon } from '@/lib/types';
+import type { Coupon } from '@/lib/types';
 
-export default function CreateCouponClient({ campaigns }: { campaigns: Campaign[] }) {
+export default function CreateCouponClient() {
   const router = useRouter();
   
   const [formData, setFormData] = useState({
     customerName: '',
     mobileNumber: '',
     couponValue: '',
-    campaignId: '',
     validFrom: getTodayIST(),
     validUntil: '',
   });
@@ -64,7 +63,7 @@ export default function CreateCouponClient({ campaigns }: { campaigns: Campaign[
         coupon_value: Number(formData.couponValue),
         valid_from: formData.validFrom,
         valid_until: formData.validUntil,
-        campaign_id: formData.campaignId || null,
+        campaign_id: null,
       };
       
       const res = await createCoupon(payload);
@@ -207,22 +206,6 @@ export default function CreateCouponClient({ campaigns }: { campaigns: Campaign[
               />
             </div>
             {errors.couponValue && <p className="text-[11px] text-[#A67C00] font-medium">{errors.couponValue}</p>}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#111111] block" htmlFor="campaignId">Campaign</label>
-            <select
-              id="campaignId"
-              name="campaignId"
-              className="w-full h-[52px] px-3.5 rounded-xl border border-[#E7E0CF] bg-white text-sm text-[#111111] focus:outline-none focus:border-[#C6A15B] transition-colors"
-              value={formData.campaignId}
-              onChange={handleChange}
-            >
-              <option value="">No campaign</option>
-              {campaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
-              ))}
-            </select>
           </div>
 
           {/* Valid From & Valid Until */}

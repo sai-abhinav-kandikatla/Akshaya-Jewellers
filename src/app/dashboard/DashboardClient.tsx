@@ -43,7 +43,7 @@ export default function DashboardClient({
       <section className="dashboard-total" aria-labelledby="dashboard-total-title">
         <h2 id="dashboard-total-title">Total Coupons</h2>
         <p className="dashboard-total-count">{new Intl.NumberFormat('en-IN').format(initialStats.total_count || 0)}</p>
-        <p className="dashboard-secondary">Across all campaigns</p>
+        <p className="dashboard-secondary">All-time coupons</p>
       </section>
 
       <section className="dashboard-value" aria-labelledby="dashboard-value-title">

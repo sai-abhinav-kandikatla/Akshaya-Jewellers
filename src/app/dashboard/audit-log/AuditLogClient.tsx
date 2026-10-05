@@ -5,19 +5,18 @@ import Link from 'next/link';
 import { formatDateIndian } from '@/lib/utils/formatters';
 import type { AuditLog } from '@/lib/types';
 
-const actions = ['COUPON_CREATED', 'COUPON_CLAIMED', 'COUPON_CANCELLED', 'WHATSAPP_PREPARED', 'CAMPAIGN_CREATED', 'CAMPAIGN_UPDATED'];
+const actions = ['COUPON_CREATED', 'COUPON_CLAIMED', 'COUPON_CANCELLED', 'WHATSAPP_PREPARED'];
 const labels: Record<string, string> = {
   COUPON_CREATED: 'Coupon Created',
   COUPON_CLAIMED: 'Coupon Claimed',
   COUPON_CANCELLED: 'Coupon Cancelled',
   WHATSAPP_PREPARED: 'WhatsApp Prepared',
-  CAMPAIGN_CREATED: 'Campaign Created',
-  CAMPAIGN_UPDATED: 'Campaign Updated',
 };
 
 export default function AuditLogClient({ initialLogs }: { initialLogs: AuditLog[] }) {
   const [filterAction, setFilterAction] = useState('ALL');
-  const filteredLogs = filterAction === 'ALL' ? initialLogs : initialLogs.filter(log => log.action === filterAction);
+  const relevantLogs = initialLogs.filter(log => !log.action.startsWith('CAMPAIGN_'));
+  const filteredLogs = filterAction === 'ALL' ? relevantLogs : relevantLogs.filter(log => log.action === filterAction);
 
   return (
     <div className="audit-log-page">

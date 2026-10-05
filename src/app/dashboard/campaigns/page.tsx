@@ -1,7 +1,5 @@
-import { getCampaigns } from '@/app/actions/campaigns';
-import CampaignsClient from './CampaignsClient';
+import { redirect } from 'next/navigation';
 
-export default async function CampaignsPage() {
-  const campaigns = await getCampaigns();
-  return <CampaignsClient initialCampaigns={campaigns} />;
+export default function CampaignsPage() {
+  redirect('/dashboard/coupons');
 }

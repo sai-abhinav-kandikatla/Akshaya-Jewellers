@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { getCouponByCode, claimCoupon, cancelCoupon } from '@/app/actions/coupons';
 import { logAuditEvent } from '@/app/actions/audit';
-import { getCampaignById } from '@/app/actions/campaigns';
 import { formatCurrency, formatIndianDate } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { createCouponQrImageFile, shareCouponQrFileWithText } from '@/lib/utils/whatsapp';
@@ -16,7 +15,6 @@ type SheetAction = 'CLAIM' | 'CANCEL' | 'WHATSAPP' | null;
 
 export default function CouponDetailPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
   const [coupon, setCoupon] = useState<Coupon | null>(null);
-  const [campaignName, setCampaignName] = useState('—');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [sheetAction, setSheetAction] = useState<SheetAction>(null);
@@ -37,8 +35,6 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
           return;
         }
         setCoupon(data);
-        const campaign = data.campaign_id ? await getCampaignById(data.campaign_id) : null;
-        if (active) setCampaignName(campaign?.name || '—');
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : 'Could not load coupon details.');
       } finally {
@@ -150,7 +146,6 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
           <div><dt>Customer</dt><dd>{coupon.customer_name}</dd></div>
           <div><dt>Mobile</dt><dd>+91 {coupon.phone_number}</dd></div>
           <div><dt>Value</dt><dd>{formatCurrency(coupon.coupon_value ?? coupon.value ?? 0)}</dd></div>
-          <div><dt>Campaign</dt><dd>{campaignName}</dd></div>
           <div><dt>Valid From</dt><dd>{formatIndianDate(coupon.valid_from)}</dd></div>
           <div><dt>Valid Until</dt><dd>{formatIndianDate(coupon.valid_until)}</dd></div>
         </dl>

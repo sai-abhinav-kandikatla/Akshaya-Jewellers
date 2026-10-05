@@ -3,28 +3,22 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminLogoutAction } from '@/app/actions/auth';
-import { isWhatsAppConfigured } from '@/app/actions/whatsapp';
 import { getDatabaseConnectionStatus } from '@/app/actions/dashboard';
 import BottomSheet from '@/components/BottomSheet';
 
 export default function SettingsPage() {
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
-  const [whatsappConfigured, setWhatsappConfigured] = useState<boolean | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      getDatabaseConnectionStatus().catch(() => false),
-      isWhatsAppConfigured().catch(() => false),
-    ]).then(([database, whatsapp]) => {
-      if (active) {
-        setDbConnected(database);
-        setWhatsappConfigured(whatsapp);
-      }
-    });
+    getDatabaseConnectionStatus()
+      .catch(() => false)
+      .then((database) => {
+        if (active) setDbConnected(database);
+      });
     return () => { active = false; };
   }, []);
 
@@ -64,7 +58,7 @@ export default function SettingsPage() {
       <section className="settings-group">
         <h2>System</h2>
         <div className="settings-row"><span>Database</span><span>{connectionLabel(dbConnected)}</span></div>
-        <div className="settings-row"><span>WhatsApp</span><span>{connectionLabel(whatsappConfigured)}</span></div>
+        <div className="settings-row"><span>WhatsApp</span><span>Available</span></div>
       </section>
       <section className="settings-group">
         <h2>Actions</h2>
