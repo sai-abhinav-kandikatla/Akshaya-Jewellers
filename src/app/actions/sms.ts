@@ -2,6 +2,8 @@
 
 import { ApiResponse } from '@/lib/types';
 import { generateWhatsAppMessage } from '@/lib/utils/whatsapp';
+import { isAdminAuthenticated } from '@/lib/auth/requireAdmin';
+import { isValidIndianMobile, normalizePhone } from '@/lib/utils/validators';
 
 export interface SendSMSInput {
   phoneNumber: string;
@@ -18,6 +20,14 @@ export interface SendSMSInput {
  */
 export async function sendCouponSMS(input: SendSMSInput): Promise<ApiResponse> {
   try {
+    if (!(await isAdminAuthenticated())) return { success: false, error: 'Unauthorized.' };
+    if (!input || typeof input !== 'object' || !isValidIndianMobile(input.phoneNumber || '')) {
+      return { success: false, error: 'Enter a valid Indian mobile number.' };
+    }
+    if (!input.couponCode || !Number.isFinite(Number(input.couponValue)) || Number(input.couponValue) <= 0) {
+      return { success: false, error: 'A valid coupon code and value are required.' };
+    }
+
     const message = generateWhatsAppMessage({
       customerName: input.customerName,
       couponCode: input.couponCode,
@@ -29,7 +39,7 @@ export async function sendCouponSMS(input: SendSMSInput): Promise<ApiResponse> {
     // 1. Check for Fast2SMS API Key (India SMS Gateway)
     const fast2smsKey = process.env.FAST2SMS_API_KEY;
     if (fast2smsKey) {
-      const cleanPhone = input.phoneNumber.replace(/\D/g, '').slice(-10);
+      const cleanPhone = normalizePhone(input.phoneNumber);
       const res = await fetch('https://www.fast2sms.com/dev/bulkV2', {
         method: 'POST',
         headers: {
@@ -42,6 +52,7 @@ export async function sendCouponSMS(input: SendSMSInput): Promise<ApiResponse> {
           language: 'english',
           numbers: cleanPhone,
         }),
+        signal: AbortSignal.timeout(10000),
       });
 
       const data = await res.json();
@@ -76,6 +87,7 @@ export async function sendCouponSMS(input: SendSMSInput): Promise<ApiResponse> {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: body.toString(),
+        signal: AbortSignal.timeout(10000),
       });
 
       const data = await res.json();

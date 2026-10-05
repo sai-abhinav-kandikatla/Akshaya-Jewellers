@@ -13,18 +13,14 @@ export function generateCouponCode(): string {
   const codeLength = 6;
   let code = '';
 
-  // Use crypto.getRandomValues for secure randomness
-  if (typeof window !== 'undefined' && window.crypto) {
-    const array = new Uint32Array(codeLength);
-    window.crypto.getRandomValues(array);
-    for (let i = 0; i < codeLength; i++) {
-      code += CHARSET[array[i] % CHARSET.length];
-    }
-  } else {
-    // Server-side fallback
-    for (let i = 0; i < codeLength; i++) {
-      code += CHARSET[Math.floor(Math.random() * CHARSET.length)];
-    }
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error('Secure randomness is not available in this runtime.');
+  }
+
+  const array = new Uint32Array(codeLength);
+  globalThis.crypto.getRandomValues(array);
+  for (let i = 0; i < codeLength; i++) {
+    code += CHARSET[array[i] % CHARSET.length];
   }
 
   return `AKS-${code}`;

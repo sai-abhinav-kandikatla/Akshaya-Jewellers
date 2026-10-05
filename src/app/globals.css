@@ -589,7 +589,7 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
 .coupon-value-prefix { display: none; }
 .dashboard-stat-heading { display: none; }
 .dashboard-quick-actions { display: none; }
-.create-campaign-field,
+.create-coupon-value-field,
 .advanced-toggle-mobile,
 .advanced-filter-actions-mobile { display: none; }
 .advanced-clear-desktop { display: block; }
@@ -1418,7 +1418,7 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
   .create-coupon-page .card { padding: 18px 16px 20px; }
   .create-coupon-page form { gap: 16px; }
   .create-coupon-page .form-group { margin: 0; }
-  .create-campaign-field { display: block; }
+  .create-coupon-value-field { display: block; }
   .create-coupon-page .create-submit-wrap {
     position: fixed;
     inset: auto 0 calc(72px + env(safe-area-inset-bottom, 0px));

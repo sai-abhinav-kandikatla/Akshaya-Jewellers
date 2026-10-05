@@ -5,18 +5,40 @@ import { ApiResponse, Coupon, CouponWithDisplayStatus, CreateCouponInput, Coupon
 import { generateCouponCode } from '@/lib/utils/couponCode';
 import { computeDisplayStatus, getISTDateString } from '@/lib/utils/statusCompute';
 import { isUuid } from '@/lib/utils/identifiers';
-import { isValidIndianMobile, normalizePhone } from '@/lib/utils/validators';
-import { logAuditEvent } from './audit';
+import { isValidIndianMobile, isValidCustomerName, isValidCouponValue, normalizePhone } from '@/lib/utils/validators';
+import { writeAuditEvent } from '@/lib/audit/events';
 import { sendWhatsAppCloudAPI } from './whatsapp';
-import { syncCouponToExcel } from './excel';
+import { isAdminAuthenticated } from '@/lib/auth/requireAdmin';
+
+function isValidIsoDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
 
 export async function createCoupon(input: CreateCouponInput): Promise<ApiResponse<Coupon>> {
   try {
+    if (!(await isAdminAuthenticated())) return { success: false, error: 'Unauthorized. Please sign in and try again.' };
     const supabase = createAdminClient();
-    
-    const val = input.coupon_value || input.discount_value || 0;
-    if (!input.customer_name || !input.phone_number || !val || !input.valid_from || !input.valid_until) {
+
+    if (!input || typeof input !== 'object') {
       return { success: false, error: 'Customer name, phone, value, valid from, and valid until dates are required.' };
+    }
+
+    const customerName = typeof input.customer_name === 'string' ? input.customer_name.trim() : '';
+    const rawValue = input.coupon_value ?? input.discount_value ?? 0;
+    const val = Number(rawValue);
+    if (!isValidCustomerName(customerName) || !input.phone_number || !isValidCouponValue(val) || !Number.isFinite(val) || val > 99_999_999.99 || !input.valid_from || !input.valid_until) {
+      return { success: false, error: 'Enter a customer name, valid Indian mobile number, coupon value above ₹0, and both validity dates.' };
+    }
+
+    if (!isValidIsoDate(input.valid_from) || !isValidIsoDate(input.valid_until) || input.valid_until < input.valid_from) {
+      return { success: false, error: 'Enter valid dates. Valid Until cannot be before Valid From.' };
+    }
+
+    if (input.campaign_id && !isUuid(input.campaign_id)) {
+      return { success: false, error: 'Select a valid campaign.' };
     }
 
     const phone = normalizePhone(input.phone_number);
@@ -56,7 +78,7 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
         .from('coupons')
         .insert({
           coupon_code: code,
-          customer_name: input.customer_name,
+          customer_name: customerName,
           phone_number: phone,
           coupon_value: val,
           campaign_id: input.campaign_id || null,
@@ -118,16 +140,10 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
       console.warn('Non-fatal WhatsApp trigger warning:', waErr);
     }
 
-    // Trigger Excel Cloud Synchronization
-    try {
-      await syncCouponToExcel(coupon);
-    } catch (excelErr) {
-      console.warn('Non-fatal Excel sync trigger warning:', excelErr);
-    }
 
     // Log Audit Record
     try {
-      await logAuditEvent('COUPON_CREATED', coupon.id, input.campaign_id || undefined, {
+      await writeAuditEvent('COUPON_CREATED', coupon.id, input.campaign_id || undefined, {
         customer_name: coupon.customer_name,
         phone_number: coupon.phone_number,
         code: coupon.coupon_code
@@ -144,14 +160,17 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
 }
 
 export async function getCoupons(filters: CouponFilters): Promise<{ coupons: CouponWithDisplayStatus[], total: number }> {
+  if (!(await isAdminAuthenticated())) return { coupons: [], total: 0 };
   try {
     const supabase = createAdminClient();
     const istStr = getISTDateString();
+    filters = filters && typeof filters === 'object' ? filters : {};
 
     let query = supabase.from('coupons').select('*', { count: 'exact' });
 
-    if (filters.search) {
-      query = query.or(`coupon_code.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,phone_number.ilike.%${filters.search}%`);
+    if (typeof filters.search === 'string' && filters.search.trim()) {
+      const search = filters.search.trim().replace(/[(),]/g, ' ').slice(0, 100);
+      query = query.or(`coupon_code.ilike.%${search}%,customer_name.ilike.%${search}%,phone_number.ilike.%${search}%`);
     }
 
     const campaignId = filters.campaign_id || filters.campaignId;
@@ -194,8 +213,9 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
       }
     }
 
-    const page = filters.page || 1;
-    const limit = filters.limit || 10;
+    const page = Number.isInteger(filters.page) && (filters.page ?? 0) > 0 ? filters.page! : 1;
+    const requestedLimit = filters.limit || filters.per_page || 10;
+    const limit = Number.isInteger(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 10;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -226,6 +246,7 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
 }
 
 export async function getCouponByCode(code: string): Promise<CouponWithDisplayStatus | null> {
+  if (!(await isAdminAuthenticated())) throw new Error('Unauthorized. Please sign in and try again.');
   try {
     const supabase = createAdminClient();
     const query = supabase
@@ -259,31 +280,8 @@ export async function getCouponByCode(code: string): Promise<CouponWithDisplaySt
   }
 }
 
-async function syncChangedCouponStatus(couponId: string, status: 'CLAIMED' | 'CANCELLED') {
-  const retryMessage = 'Excel sync is queued for automatic retry.';
-  try {
-    const supabase = createAdminClient();
-    const { data: coupon, error } = await supabase
-      .from('coupons')
-      .update({ excel_sync_status: 'PENDING', excel_synced_at: null })
-      .eq('id', couponId)
-      .eq('status', status)
-      .select('*')
-      .maybeSingle();
 
-    if (error || !coupon) {
-      console.error('Failed to load changed coupon for Excel sync:', error);
-      return `${error?.message || 'Could not load the updated coupon for Excel sync.'} Excel sync could not be queued. Retry it from Settings after fixing workbook access.`;
-    }
 
-    const result = await syncCouponToExcel(coupon);
-    return result.success ? null : `${result.error || 'Excel sync failed.'} ${retryMessage}`;
-  } catch (error) {
-    console.error('Failed to sync changed coupon status to Excel:', error);
-    const detail = error instanceof Error ? error.message : 'Excel sync failed.';
-    return `${detail} Excel sync could not be queued. Retry it from Settings after fixing workbook access.`;
-  }
-}
 
 function mutationFallbackUnavailable(error: { code?: string; message?: string }) {
   return error.code !== 'PGRST202' && error.code !== '42883';
@@ -291,6 +289,8 @@ function mutationFallbackUnavailable(error: { code?: string; message?: string })
 
 export async function claimCoupon(identifier: string): Promise<ApiResponse> {
   try {
+    if (!(await isAdminAuthenticated())) return { success: false, error: 'Unauthorized. Please sign in to redeem coupons.' };
+    if (typeof identifier !== 'string' || !identifier.trim()) return { success: false, error: 'Enter a coupon code.' };
     const supabase = createAdminClient();
     
     // Query the UUID ID column only for UUID-shaped identifiers. Mixing it
@@ -345,15 +345,10 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
         return { success: false, error: 'The coupon is still active. Its claim was not saved; refresh and try again.' };
       }
 
-      const syncWarning = await syncChangedCouponStatus(coupon.id, 'CLAIMED');
-      const warning = [
-        statusError ? 'The claim was accepted, but the updated status could not be reloaded.' : '',
-        syncWarning ? `Excel sync: ${syncWarning}` : '',
-      ].filter(Boolean).join(' ');
       return {
         success: true,
-        message: syncWarning ? 'Coupon redeemed successfully.' : 'Coupon redeemed successfully and Excel was updated.',
-        ...(warning ? { warning } : {}),
+        message: 'Coupon redeemed successfully.',
+        ...(statusError ? { warning: 'The claim was accepted, but the updated status could not be reloaded.' } : {}),
       };
     }
 
@@ -366,7 +361,7 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
     const today = getISTDateString();
     const { data: updated, error: updateError } = await supabase
       .from('coupons')
-      .update({ status: 'CLAIMED', claimed_at: new Date().toISOString(), excel_sync_status: 'PENDING', excel_synced_at: null })
+      .update({ status: 'CLAIMED', claimed_at: new Date().toISOString() })
       .eq('id', coupon.id)
       .eq('status', 'ACTIVE')
       .lte('valid_from', today)
@@ -378,11 +373,11 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
       return { success: false, error: updateError?.message || 'This coupon is no longer active and cannot be redeemed.' };
     }
 
-    const syncResult = await syncCouponToExcel(updated);
+    await writeAuditEvent('COUPON_CLAIMED', updated.id, updated.campaign_id || undefined, { coupon_code: updated.coupon_code });
+
     return {
       success: true,
-      message: syncResult.success ? 'Coupon redeemed successfully and Excel was updated.' : 'Coupon redeemed successfully.',
-      ...(!syncResult.success ? { warning: `Excel sync: ${syncResult.error || 'Update queued for automatic retry.'}` } : {}),
+      message: 'Coupon redeemed successfully.',
     };
   } catch (error: any) {
     console.error('claimCoupon exception:', error);
@@ -392,6 +387,8 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
 
 export async function cancelCoupon(identifier: string, reason?: string): Promise<ApiResponse> {
   try {
+    if (!(await isAdminAuthenticated())) return { success: false, error: 'Unauthorized. Please sign in to cancel coupons.' };
+    if (typeof identifier !== 'string' || !identifier.trim()) return { success: false, error: 'Enter a coupon code.' };
     const supabase = createAdminClient();
     
     const query = supabase
@@ -418,15 +415,14 @@ export async function cancelCoupon(identifier: string, reason?: string): Promise
       return { success: false, error: 'This coupon has expired and cannot be cancelled.' };
     }
 
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('cancel_coupon', { p_coupon_code: coupon.coupon_code, p_reason: reason });
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('cancel_coupon', { p_coupon_code: coupon.coupon_code, p_reason: reason?.trim().slice(0, 500) || null });
     if (!rpcError) {
       if (rpcResult?.success === false) {
         return { success: false, error: rpcResult.message || 'This coupon could not be cancelled.' };
       }
-      const syncWarning = await syncChangedCouponStatus(coupon.id, 'CANCELLED');
       return {
         success: true,
-        message: syncWarning ? `Coupon cancelled. ${syncWarning}` : 'Coupon cancelled and Excel was updated.',
+        message: 'Coupon cancelled successfully.',
       };
     }
 
@@ -438,7 +434,7 @@ export async function cancelCoupon(identifier: string, reason?: string): Promise
     const today = getISTDateString();
     const { data: updated, error: updateError } = await supabase
       .from('coupons')
-      .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString(), excel_sync_status: 'PENDING', excel_synced_at: null })
+      .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString() })
       .eq('id', coupon.id)
       .eq('status', 'ACTIVE')
       .gte('valid_until', today)
@@ -449,41 +445,17 @@ export async function cancelCoupon(identifier: string, reason?: string): Promise
       return { success: false, error: updateError?.message || rpcError?.message || 'Failed to cancel coupon.' };
     }
 
-    const syncResult = await syncCouponToExcel(updated);
+    await writeAuditEvent('COUPON_CANCELLED', updated.id, updated.campaign_id || undefined, {
+      coupon_code: updated.coupon_code,
+      reason: reason?.trim().slice(0, 500) || null,
+    });
+
     return {
       success: true,
-      message: syncResult.success ? 'Coupon cancelled and Excel was updated.' : 'Coupon cancelled. Excel update is pending and will retry automatically.',
+      message: 'Coupon cancelled successfully.',
     };
   } catch (error: any) {
     console.error('cancelCoupon exception:', error);
     return { success: false, error: error?.message || 'An unexpected error occurred while cancelling the coupon.' };
-  }
-}
-
-export async function getCouponForVerification(code: string): Promise<CouponWithDisplayStatus | null> {
-  try {
-    const supabase = createAdminClient();
-    const query = supabase
-      .from('coupons')
-      .select('*');
-    const identifier = code.trim();
-    const { data, error } = isUuid(identifier)
-      ? await query.eq('id', identifier).maybeSingle()
-      : await query.eq('coupon_code', identifier.toUpperCase()).maybeSingle();
-
-    if (error || !data) {
-      return null;
-    }
-
-    const val = Number(data.coupon_value ?? data.value ?? 0);
-    return {
-      ...data,
-      value: val,
-      coupon_value: val,
-      display_status: computeDisplayStatus(data.status, data.valid_from, data.valid_until)
-    };
-  } catch (error) {
-    console.error('getCouponForVerification exception:', error);
-    return null;
   }
 }

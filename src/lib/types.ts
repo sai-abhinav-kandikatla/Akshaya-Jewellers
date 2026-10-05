@@ -11,6 +11,10 @@ export type AuditAction =
   | 'COUPON_CLAIMED'
   | 'COUPON_CANCELLED'
   | 'WHATSAPP_PREPARED'
+  | 'WHATSAPP_SENT'
+  | 'WHATSAPP_FAILED'
+  | 'WHATSAPP_RESENT'
+  | 'COUPON_EXPIRED'
   | 'COUPON_VIEWED'
   | 'CAMPAIGN_CREATED'
   | 'CAMPAIGN_UPDATED'
@@ -48,8 +52,6 @@ export interface Coupon {
   cancelled_at: string | null;
   cancelled_by: string | null;
   whatsapp_status?: 'SENT' | 'PREPARED' | 'FAILED' | null;
-  excel_sync_status?: 'SYNCED' | 'PENDING' | 'ERROR' | null;
-  excel_synced_at?: string | null;
   // Joined fields
   campaign?: Campaign | null;
 }
@@ -69,6 +71,8 @@ export interface AuditLog {
   created_at: string;
   // Joined fields
   coupon?: Pick<Coupon, 'coupon_code' | 'customer_name'> | null;
+  coupon_code?: string | null;
+  customer_name?: string | null;
 }
 
 export interface DashboardStats {

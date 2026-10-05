@@ -1,8 +1,8 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
 import { createAdminSessionToken } from '@/lib/auth/adminSession';
+import { writeAuditEvent } from '@/lib/audit/events';
 
 export async function adminLoginAction(usernameInput: string, passwordInput: string) {
   try {
@@ -16,11 +16,12 @@ export async function adminLoginAction(usernameInput: string, passwordInput: str
       };
     }
 
-    const cleanInput = usernameInput.trim();
-    const isAdminUser = cleanInput.toLowerCase() === adminUsername.toLowerCase() || 
-                         cleanInput.toLowerCase() === 'akshaya_jewellers' ||
-                         cleanInput.toLowerCase() === 'akshaya_jewellers@akshayajewellers.com';
+    if (typeof usernameInput !== 'string' || typeof passwordInput !== 'string') {
+      return { success: false, error: 'Invalid username or password' };
+    }
 
+    const cleanInput = usernameInput.trim();
+    const isAdminUser = cleanInput.toLowerCase() === adminUsername.trim().toLowerCase();
     const isCorrectPassword = passwordInput === adminPassword;
 
     if (!isAdminUser || !isCorrectPassword) {
@@ -35,36 +36,7 @@ export async function adminLoginAction(usernameInput: string, passwordInput: str
       };
     }
 
-    const email = 'akshaya_jewellers@akshayajewellers.com';
-    const supabase = await createClient();
-
-    // 1. Attempt login with Supabase
-    let { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-      email,
-      password: adminPassword,
-    });
-
-    // 2. If user not found in Supabase auth table, auto-provision
-    if (signInErr) {
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email,
-        password: adminPassword,
-      });
-
-      if (!signUpErr && signUpData.user) {
-        // Try sign in again after signup
-        const { data: retryData, error: retryErr } = await supabase.auth.signInWithPassword({
-          email,
-          password: adminPassword,
-        });
-        if (!retryErr) {
-          signInData = retryData;
-          signInErr = null;
-        }
-      }
-    }
-
-    // Set fallback admin session cookie to guarantee login even if email confirmation is required by Supabase
+    const email = adminUsername.trim();
     const cookieStore = await cookies();
     cookieStore.set('akshaya_admin_session', sessionToken.value, {
       httpOnly: true,
@@ -75,12 +47,14 @@ export async function adminLoginAction(usernameInput: string, passwordInput: str
     });
 
     cookieStore.set('akshaya_admin_email', email, {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
     });
+
+    await writeAuditEvent('LOGIN', undefined, undefined, { username: email });
 
     return { success: true, message: 'Logged in successfully' };
   } catch (err: any) {
@@ -90,13 +64,7 @@ export async function adminLoginAction(usernameInput: string, passwordInput: str
 }
 
 export async function adminLogoutAction() {
-  try {
-    const supabase = await createClient();
-    await supabase.auth.signOut();
-  } catch (e) {
-    // Ignore signout errors
-  }
-
+  await writeAuditEvent('LOGOUT');
   const cookieStore = await cookies();
   cookieStore.delete('akshaya_admin_session');
   cookieStore.delete('akshaya_admin_email');

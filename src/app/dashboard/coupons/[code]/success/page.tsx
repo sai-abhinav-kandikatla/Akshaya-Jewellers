@@ -82,7 +82,6 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
   const displayStatus = computeDisplayStatus(coupon);
   const canSendWhatsApp = displayStatus === 'ACTIVE' || displayStatus === 'NOT_ACTIVE';
   const whatsappStatus = coupon.whatsapp_status;
-  const excelStatus = coupon.excel_sync_status;
 
   const whatsappLabel = whatsappStatus === 'SENT'
     ? 'Sent via Cloud API'
@@ -91,13 +90,6 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
       : whatsappStatus === 'FAILED'
         ? 'Send failed'
         : 'Not sent';
-  const excelLabel = excelStatus === 'SYNCED'
-    ? 'Synced'
-    : excelStatus === 'ERROR'
-      ? 'Sync failed'
-      : excelStatus === 'PENDING'
-        ? 'Retry queued'
-        : 'Not synced';
 
   return (
     <div className="coupon-success-page max-w-lg mx-auto space-y-6 pb-8">
@@ -120,22 +112,18 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
         <p className="text-xs text-gray-500 mt-0.5">Akshaya Jewellery Digital Gift Voucher</p>
       </div>
 
-      {/* Status Indicators Cards (Master Prompt Section 16-18) */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className={`p-3 border rounded-xl flex items-center gap-2 ${whatsappStatus === 'SENT' ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+      {/* WhatsApp Status Indicator */}
+      <div className={`p-3 border rounded-xl flex items-center justify-between ${whatsappStatus === 'SENT' ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+        <div className="flex items-center gap-2">
           <span className="text-base">{whatsappStatus === 'SENT' ? '✓' : '•'}</span>
           <div>
-            <p className="text-[10px] uppercase font-bold text-gray-800">WhatsApp</p>
+            <p className="text-[10px] uppercase font-bold text-gray-800">WhatsApp Notification</p>
             <p className="text-xs font-semibold text-gray-700">{whatsappLabel}</p>
           </div>
         </div>
-        <div className={`p-3 border rounded-xl flex items-center gap-2 ${excelStatus === 'SYNCED' ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
-          <span className="text-base">{excelStatus === 'SYNCED' ? '✓' : '•'}</span>
-          <div>
-            <p className="text-[10px] uppercase font-bold text-gray-800">Excel Sync</p>
-            <p className="text-xs font-semibold text-gray-700">{excelLabel}</p>
-          </div>
-        </div>
+        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${whatsappStatus === 'SENT' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+          {whatsappStatus === 'SENT' ? 'Delivered' : 'Ready'}
+        </span>
       </div>
 
       {canSendWhatsApp && (

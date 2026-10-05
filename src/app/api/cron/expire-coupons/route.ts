@@ -1,6 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getISTDateString } from '@/lib/utils/statusCompute';
-import { syncCouponsToExcel } from '@/app/actions/excel';
 
 export const runtime = 'nodejs';
 
@@ -35,7 +34,7 @@ export async function GET(request: Request) {
   if (dueCoupons?.length) {
     const { data: expiredCoupons, error: updateError } = await supabase
       .from('coupons')
-      .update({ status: 'EXPIRED', excel_sync_status: 'PENDING', excel_synced_at: null })
+      .update({ status: 'EXPIRED' })
       .in('id', dueCoupons.map((coupon) => coupon.id))
       .eq('status', 'ACTIVE')
       .lt('valid_until', today)
@@ -48,28 +47,9 @@ export async function GET(request: Request) {
     expiredCount = expiredCoupons?.length || 0;
   }
 
-  const { data: couponsToSync, error: pendingQueryError } = await supabase
-    .from('coupons')
-    .select('*')
-    .in('excel_sync_status', ['PENDING', 'ERROR'])
-    .order('created_at', { ascending: true })
-    .limit(BATCH_SIZE);
-
-  if (pendingQueryError) {
-    console.error('Excel retry queue query failed:', pendingQueryError);
-    return Response.json({ success: false, error: 'Unable to load pending Excel updates.' }, { status: 500 });
-  }
-
-  const retryBatch = couponsToSync || [];
-  const syncResults = await syncCouponsToExcel(retryBatch);
-  const excelUpdated = syncResults.filter((result) => result.success).length;
-
   return Response.json({
     success: true,
     today,
     expired: expiredCount,
-    attempted: retryBatch.length,
-    excelUpdated,
-    excelPending: retryBatch.length - excelUpdated,
   });
 }

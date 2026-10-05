@@ -44,6 +44,7 @@ We are delighted to present you with an exclusive Gift Coupon.
 • Coupon Value: ${formatCurrency(val)}
 • Valid From: ${formatDateIndian(from)}
 • Valid Until: ${formatDateIndian(until)}
+${verificationUrl ? `\nVerify coupon: ${verificationUrl}` : ''}
 
 
 Thank you for choosing Akshaya Jewellers! 💍✨`;

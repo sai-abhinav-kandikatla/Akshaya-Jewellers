@@ -27,7 +27,7 @@
 5. Click **Run**
 6. You should see "Success" — this creates all tables, indexes, RLS policies, and RPC functions
 
-For an existing deployment, run `supabase/automatic_coupon_expiry_and_excel_sync.sql` and `supabase/prevent_duplicate_coupon_numbers.sql` once in the SQL Editor. The first migration enables stored expiry and queues old terminal coupons for Excel reconciliation; the second adds the one-coupon-per-mobile safeguard.
+For an existing deployment, run `supabase/automatic_coupon_expiry.sql` and `supabase/prevent_duplicate_coupon_numbers.sql` once in the SQL Editor. The first migration enables stored expiry and IST date checks; the second adds the one-coupon-per-mobile safeguard.
 
 ---
 
@@ -46,14 +46,14 @@ ADMIN_USERNAME=Akshaya_Jewellers
 ADMIN_PASSWORD=replace_with_a_strong_password
 ADMIN_SESSION_SECRET=replace_with_a_random_secret
 CRON_SECRET=replace_with_a_random_secret_at_least_16_characters
-MICROSOFT_GRAPH_ACCESS_TOKEN=your_files_readwrite_graph_access_token
-ONEDRIVE_EXCEL_FILE_ID=your_onedrive_business_or_sharepoint_workbook_item_id
+# Optional WhatsApp Cloud API
+WHATSAPP_ACCESS_TOKEN=your_whatsapp_token
+WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
 ```
 
 > ⚠️ Never commit `.env.local` to version control!
 > Keep admin credentials and the session secret server-only. Do not add the `NEXT_PUBLIC_` prefix to them.
-
-Excel sync writes to the `.xlsx` workbook identified by `ONEDRIVE_EXCEL_FILE_ID` in the Microsoft drive associated with the Graph token. The workbook must contain a table named `CouponsTable`, and the token needs Microsoft Graph `Files.ReadWrite` access. No Excel file is created in this project folder. The Graph Excel API requires a OneDrive for Business or SharePoint workbook; personal OneDrive isn't supported. Access tokens expire, so replace the token when Microsoft expires it. Writes that fail remain queued and the scheduled job retries them automatically.
+> Supabase PostgreSQL is the sole source of truth. You can export coupons to CSV directly from the Coupons dashboard anytime.
 
 ---
 
@@ -105,8 +105,8 @@ After creating your admin account, to prevent others from signing up:
    - `ADMIN_PASSWORD`
    - `ADMIN_SESSION_SECRET`
    - `CRON_SECRET`
-   - `MICROSOFT_GRAPH_ACCESS_TOKEN`
-   - `ONEDRIVE_EXCEL_FILE_ID`
+   - `WHATSAPP_ACCESS_TOKEN` (optional)
+   - `WHATSAPP_PHONE_NUMBER_ID` (optional)
    Keep the admin variables server-only; do not prefix them with `NEXT_PUBLIC_`.
 4. Make sure they apply to the **Production** environment (and Preview too if you test there).
 5. Deploy or redeploy after saving the variables. Existing Vercel deployments do not receive environment-variable changes.

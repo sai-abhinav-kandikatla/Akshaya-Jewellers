@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { DashboardStats, CouponWithDisplayStatus } from '@/lib/types';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
+import { isAdminAuthenticated } from '@/lib/auth/requireAdmin';
 
 export async function getDashboardStats(campaignId?: string): Promise<DashboardStats> {
   const fallbackStats: DashboardStats = {
@@ -18,6 +19,8 @@ export async function getDashboardStats(campaignId?: string): Promise<DashboardS
     claimed_value: 0,
     expired_value: 0,
   };
+
+  if (!(await isAdminAuthenticated())) return fallbackStats;
 
   try {
     const supabase = createAdminClient();
@@ -69,6 +72,7 @@ export async function getDashboardStats(campaignId?: string): Promise<DashboardS
 }
 
 export async function getRecentCoupons(limit: number = 10): Promise<CouponWithDisplayStatus[]> {
+  if (!(await isAdminAuthenticated())) return [];
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -90,5 +94,16 @@ export async function getRecentCoupons(limit: number = 10): Promise<CouponWithDi
   } catch (error) {
     console.error('getRecentCoupons exception:', error);
     return [];
+  }
+}
+
+export async function getDatabaseConnectionStatus(): Promise<boolean> {
+  if (!(await isAdminAuthenticated())) return false;
+  try {
+    const supabase = createAdminClient();
+    const { error } = await supabase.from('coupons').select('id', { head: true, count: 'exact' }).limit(1);
+    return !error;
+  } catch {
+    return false;
   }
 }

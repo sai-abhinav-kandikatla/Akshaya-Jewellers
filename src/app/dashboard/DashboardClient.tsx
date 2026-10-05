@@ -72,7 +72,6 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
         <h2 className="dashboard-stat-heading text-sm font-bold uppercase tracking-wider text-gray-600 mb-2">Coupon Overview</h2>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <CompactStatCard title="ACTIVE" count={initialStats?.active_count || 0} color="border-l-4 border-green-500 bg-green-50/40" textColor="text-green-700" />
-        <CompactStatCard title="NOT ACTIVE" count={initialStats?.not_active_count || 0} color="border-l-4 border-amber-500 bg-amber-50/40" textColor="text-amber-700" />
         <CompactStatCard title="CLAIMED" count={initialStats?.claimed_count || 0} color="border-l-4 border-blue-500 bg-blue-50/40" textColor="text-blue-700" />
         <CompactStatCard title="EXPIRED" count={initialStats?.expired_count || 0} color="border-l-4 border-red-500 bg-red-50/40" textColor="text-red-700" />
         <CompactStatCard title="CANCELLED" count={initialStats?.cancelled_count || 0} color="border-l-4 border-gray-400 bg-gray-50" textColor="text-gray-700" />

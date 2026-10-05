@@ -24,7 +24,6 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
   const [modalState, setModalState] = useState<{ isOpen: boolean, type: 'CLAIM' | 'CANCEL' | null }>({ isOpen: false, type: null });
   const [isProcessing, setIsProcessing] = useState(false);
   const [toast, setToast] = useState<{ id: number, message: string, type: 'success' | 'error' } | null>(null);
-  const [excelWarning, setExcelWarning] = useState('');
 
   const loadData = async () => {
     try {
@@ -75,7 +74,6 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
       if (modalState.type === 'CLAIM') {
         const res = await claimCoupon(coupon.id);
         if (res.success) {
-          setExcelWarning(res.warning || '');
           showToast(res.message || '✓ Coupon redeemed successfully!', 'success');
         } else {
           showToast(res.error || 'Failed to redeem coupon', 'error');
@@ -137,12 +135,6 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
           <div role={toast.type === 'error' ? 'alert' : 'status'} aria-live={toast.type === 'error' ? 'assertive' : 'polite'} className={`toast px-4 py-2 rounded-xl text-xs font-semibold shadow-xl text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-gray-900'}`}>
             {toast.message}
           </div>
-        </div>
-      )}
-      {excelWarning && (
-        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-          <p className="font-bold">The coupon is claimed; Excel sync needs attention.</p>
-          <p className="mt-1">{excelWarning}</p>
         </div>
       )}
 
@@ -230,7 +222,6 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
               <strong className="block text-base">COUPON REDEEMED</strong>
               <span className="block mt-1">{coupon.coupon_code} · {formatCurrency(coupon.value)}</span>
               <span className="block text-xs mt-1">Claimed {coupon.claimed_at ? formatDateTime(coupon.claimed_at) : ''}</span>
-              <span className="block text-xs mt-2">Excel {coupon.excel_sync_status === 'SYNCED' ? '✓ Updated' : coupon.excel_sync_status === 'ERROR' ? '⚠ Update failed' : '⏳ Update pending'}</span>
             </div>
           )}
 

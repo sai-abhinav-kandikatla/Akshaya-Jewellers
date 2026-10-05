@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createCoupon } from '@/app/actions/coupons';
-import { getCampaigns } from '@/app/actions/campaigns';
 import { validateCouponForm } from '@/lib/utils/validators';
 import { getTodayIST } from '@/lib/utils/formatters';
-import type { Campaign, Coupon } from '@/lib/types';
+import type { Coupon } from '@/lib/types';
 
 export default function CreateCouponPage() {
   const router = useRouter();
@@ -18,19 +17,13 @@ export default function CreateCouponPage() {
     couponValue: '',
     validFrom: getTodayIST(),
     validUntil: '',
-    campaignId: '',
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [existingCoupon, setExistingCoupon] = useState<Coupon | null>(null);
   const submitLock = useRef(false);
-
-  useEffect(() => {
-    getCampaigns().then(setCampaigns).catch(() => setCampaigns([]));
-  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -69,7 +62,7 @@ export default function CreateCouponPage() {
         coupon_value: Number(formData.couponValue),
         valid_from: formData.validFrom,
         valid_until: formData.validUntil,
-        campaign_id: formData.campaignId || null,
+        campaign_id: null,
       };
       
       const res = await createCoupon(payload);
@@ -167,7 +160,7 @@ export default function CreateCouponPage() {
             {errors.mobileNumber && <p className="text-xs text-red-600 mt-1 font-medium">{errors.mobileNumber}</p>}
           </div>
 
-          <div className="form-group create-campaign-field">
+          <div className="form-group create-coupon-value-field">
             <label className="form-label" htmlFor="couponValue">
               Coupon Value (₹) <span className="text-red-500">*</span>
             </label>
@@ -187,14 +180,6 @@ export default function CreateCouponPage() {
               />
             </div>
             {errors.couponValue && <p className="text-xs text-red-600 mt-1 font-medium">{errors.couponValue}</p>}
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="campaignId">Campaign</label>
-            <select id="campaignId" name="campaignId" className="form-input" value={formData.campaignId} onChange={handleChange}>
-              <option value="">No campaign</option>
-              {campaigns.map(campaign => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
-            </select>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

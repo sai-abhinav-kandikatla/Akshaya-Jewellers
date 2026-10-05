@@ -1,24 +1,19 @@
--- Apply once to an existing deployment. Vercel does not execute Supabase SQL
--- migrations as part of an application deployment.
+-- Safe & Idempotent Migration: Coupon Expiry & Dashboard Metrics
+-- Supabase PostgreSQL is the sole source of truth.
+-- Run in Supabase SQL Editor.
 
-ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS excel_sync_status TEXT NOT NULL DEFAULT 'PENDING';
-ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS excel_synced_at TIMESTAMPTZ;
-
+-- 1. Ensure status check allows EXPIRED
 ALTER TABLE public.coupons DROP CONSTRAINT IF EXISTS coupons_status_check;
 ALTER TABLE public.coupons
     ADD CONSTRAINT coupons_status_check CHECK (status IN ('ACTIVE', 'CLAIMED', 'CANCELLED', 'EXPIRED'));
 
--- Persist coupons that have already passed their last valid IST date, and queue
--- all terminal rows for one Excel reconciliation after this upgrade.
+-- 2. Update active coupons past their valid_until date to EXPIRED based on IST (Asia/Kolkata)
 UPDATE public.coupons
-SET status = 'EXPIRED', excel_sync_status = 'PENDING', excel_synced_at = NULL
+SET status = 'EXPIRED'
 WHERE status = 'ACTIVE'
   AND valid_until < (NOW() AT TIME ZONE 'Asia/Kolkata')::DATE;
 
-UPDATE public.coupons
-SET excel_sync_status = 'PENDING', excel_synced_at = NULL
-WHERE status IN ('CLAIMED', 'CANCELLED', 'EXPIRED');
-
+-- 3. Accurate dashboard metrics calculated directly in PostgreSQL
 CREATE OR REPLACE FUNCTION public.get_dashboard_stats(p_campaign_id UUID DEFAULT NULL)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -94,3 +89,4 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_dashboard_stats(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_dashboard_stats(UUID) TO anon;

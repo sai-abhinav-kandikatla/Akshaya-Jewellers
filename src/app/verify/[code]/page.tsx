@@ -1,21 +1,19 @@
 export const dynamic = 'force-dynamic';
 
 import React from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { formatCurrency, formatIndianDate, formatDateTime } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { isUuid } from '@/lib/utils/identifiers';
-import { Coupon } from '@/lib/types';
-import PublicClaimButton from './PublicClaimButton';
 
 export default async function PublicVerifyPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const resolvedParams = await params;
   const code = resolvedParams.code;
   
   const query = supabase
     .from('coupons')
-    .select('*');
+    .select('coupon_code, customer_name, coupon_value, valid_from, valid_until, status, claimed_at');
   const { data: coupon, error } = isUuid(code)
     ? await query.eq('id', code).maybeSingle()
     : await query.eq('coupon_code', code.toUpperCase()).maybeSingle();
@@ -46,7 +44,7 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
     );
   }
 
-  const status = computeDisplayStatus(coupon as Coupon);
+  const status = computeDisplayStatus(coupon);
 
   return (
     <div className="public-verify-page min-h-screen bg-[#fdfbf7] flex flex-col items-center justify-center p-4">
@@ -73,7 +71,7 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
             </div>
             <div className="text-right">
               <p className="text-[10px] text-gray-400 uppercase font-semibold">Value</p>
-              <p className="text-2xl font-bold text-[#b8860b]">{formatCurrency(coupon.coupon_value || coupon.value)}</p>
+              <p className="text-2xl font-bold text-[#b8860b]">{formatCurrency(coupon.coupon_value)}</p>
             </div>
           </div>
 
@@ -121,9 +119,10 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
             )}
           </div>
 
-          {/* Interactive Claim Button for Active Coupons */}
           {status === 'ACTIVE' && (
-            <PublicClaimButton couponCode={coupon.coupon_code} customerName={coupon.customer_name} couponValue={coupon.coupon_value || coupon.value} />
+            <p className="rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-800">
+              This coupon is valid. Ask store staff to redeem it.
+            </p>
           )}
         </div>
 

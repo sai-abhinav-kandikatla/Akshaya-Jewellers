@@ -16,7 +16,6 @@ export default function VerifyCouponPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [toast, setToast] = useState<{ id: number, message: string, type: 'success' | 'error' } | null>(null);
-  const [excelWarning, setExcelWarning] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.toUpperCase();
@@ -43,7 +42,6 @@ export default function VerifyCouponPage() {
     setIsLoading(true);
     setError('');
     setCoupon(null);
-    setExcelWarning('');
 
     try {
       const data = await getCouponByCode(searchCode);
@@ -77,7 +75,6 @@ export default function VerifyCouponPage() {
       const updated = await getCouponByCode(coupon.coupon_code);
       if (updated && computeDisplayStatus(updated) === 'CLAIMED') {
         setCoupon(updated);
-        setExcelWarning(result.warning || '');
         showToast('Coupon claimed successfully!', 'success');
       } else {
         if (updated) setCoupon(updated);
@@ -182,12 +179,6 @@ export default function VerifyCouponPage() {
 
       {coupon && !isLoading && (
         <div className="card result-card verify-result-card" style={{ padding: '2rem', borderTop: '4px solid #d4af37' }}>
-          {excelWarning && (
-            <div role="alert" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-              <p className="font-bold">The coupon is claimed; Excel sync needs attention.</p>
-              <p className="mt-1">{excelWarning}</p>
-            </div>
-          )}
           {(() => {
             const status = computeDisplayStatus(coupon);
             return (

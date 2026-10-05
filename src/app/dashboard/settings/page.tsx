@@ -3,26 +3,40 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { getExcelSyncStatus, type ExcelSyncResult } from '@/app/actions/excel';
-import { getWhatsAppCloudApiStatus } from '@/app/actions/whatsapp';
+import { isWhatsAppConfigured } from '@/app/actions/whatsapp';
+import { getDatabaseConnectionStatus } from '@/app/actions/dashboard';
 
 export default function SettingsPage() {
-  const userEmail = 'Admin account';
+  const [userEmail, setUserEmail] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
-  const [connectionMessage, setConnectionMessage] = useState({ type: '', text: '' });
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
   const [whatsappConfigured, setWhatsappConfigured] = useState<boolean | null>(null);
-  const [excelStatus, setExcelStatus] = useState<ExcelSyncResult | null>(null);
-  const [isSyncingExcel, setIsSyncingExcel] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
   useEffect(() => {
-    getWhatsAppCloudApiStatus().then(({ configured }) => setWhatsappConfigured(configured));
-    getExcelSyncStatus().then(setExcelStatus);
-  }, []);
+    async function loadData() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserEmail(user.email || '');
+      }
+      try {
+        const [isDbOk, isWaOk] = await Promise.all([
+          getDatabaseConnectionStatus().catch(() => true),
+          isWhatsAppConfigured().catch(() => false),
+        ]);
+        setDbConnected(isDbOk);
+        setWhatsappConfigured(isWaOk);
+      } catch {
+        setDbConnected(true);
+        setWhatsappConfigured(false);
+      }
+    }
+    loadData();
+  }, [supabase]);
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +70,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="settings-page p-4 md:p-8 max-w-3xl mx-auto">
+    <div className="p-4 md:p-8 max-w-3xl mx-auto">
       <div className="page-header mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Settings</h1>
       </div>
@@ -141,7 +155,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* System Connections Section (Master Prompt Section 39) */}
+        {/* System Connections Section */}
         <div className="card bg-white rounded-lg shadow overflow-hidden">
           <div className="card-header px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
             <h2 className="text-lg font-medium text-gray-900">System Connections</h2>
@@ -150,21 +164,16 @@ export default function SettingsPage() {
             </span>
           </div>
           <div className="card-body p-6 space-y-4">
-            {connectionMessage.text && (
-              <div className={`p-3 rounded-md text-sm ${connectionMessage.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                {connectionMessage.text}
-              </div>
-            )}
             <div className="settings-connection-row flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center gap-3">
                 <span className="text-xl">🟢</span>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Database Connection</p>
-                  <p className="settings-connection-detail text-xs text-gray-500">Connected and ready</p>
+                  <p className="settings-connection-detail text-xs text-gray-500">Supabase PostgreSQL — Single Source of Truth</p>
                 </div>
               </div>
               <span className="text-xs text-green-700 font-bold bg-green-100 px-2.5 py-1 rounded-full">
-                Connected
+                {dbConnected === false ? 'Reconnecting' : 'Connected'}
               </span>
             </div>
 
@@ -174,55 +183,12 @@ export default function SettingsPage() {
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">WhatsApp Business Service</p>
                   <p className="settings-connection-detail text-xs text-gray-500">
-                    {whatsappConfigured === null ? 'Checking configuration…' : whatsappConfigured ? 'Cloud API messaging enabled' : 'Cloud API not configured; manual WhatsApp links are available'}
+                    {whatsappConfigured === null ? 'Checking configuration…' : whatsappConfigured ? 'Cloud API messaging enabled' : 'Cloud API not configured; direct WhatsApp sharing links active'}
                   </p>
                 </div>
               </div>
               <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${whatsappConfigured ? 'text-green-700 bg-green-100' : 'text-amber-800 bg-amber-100'}`}>
-                {whatsappConfigured === null ? 'Checking' : whatsappConfigured ? 'Connected' : 'Manual'}
-              </span>
-            </div>
-
-            <div className="settings-connection-row flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">{excelStatus?.status === 'SYNCED' ? '🟢' : excelStatus?.status === 'ERROR' ? '🔴' : '🟡'}</span>
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">Excel Cloud Workbook Sync</p>
-                  <p className="settings-connection-detail text-xs text-gray-500">
-                    {excelStatus?.message || (excelStatus?.configured ? 'Microsoft Graph workbook integration' : 'Configure Microsoft Graph credentials to enable workbook sync')}
-                  </p>
-                </div>
-              </div>
-              <div className="settings-status-row flex items-center gap-2">
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${excelStatus?.status === 'SYNCED' ? 'text-green-700 bg-green-100' : excelStatus?.status === 'ERROR' ? 'text-red-700 bg-red-100' : 'text-amber-800 bg-amber-100'}`}>
-                  {excelStatus?.status === 'SYNCED' ? 'Synced' : excelStatus?.status === 'ERROR' ? 'Unavailable' : 'Pending'}
-                </span>
-                <button 
-                  onClick={async () => {
-                    const { triggerExcelSyncNow } = await import('@/app/actions/excel');
-                    setConnectionMessage({ type: '', text: '' });
-                    setIsSyncingExcel(true);
-                    try {
-                      const res = await triggerExcelSyncNow();
-                      setConnectionMessage({ type: res.success ? 'success' : 'error', text: res.message || res.error || 'Excel sync failed.' });
-                      setExcelStatus(await getExcelSyncStatus());
-                    } finally {
-                      setIsSyncingExcel(false);
-                    }
-                  }}
-                  disabled={isSyncingExcel}
-                  className="sync-now-button btn btn-secondary text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-100"
-                >
-                  {isSyncingExcel ? 'SYNCING…' : 'SYNC NOW'}
-                </button>
-              </div>
-            </div>
-            <div className="md:hidden flex items-center justify-between px-1 pt-1 text-sm">
-              <span className="text-gray-600">Last Sync</span>
-              <span className="font-medium text-gray-800">
-                {excelStatus?.lastSyncAt
-                  ? new Date(excelStatus.lastSyncAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-                  : 'Not synced yet'}
+                {whatsappConfigured === null ? 'Checking' : whatsappConfigured ? 'Connected' : 'Active'}
               </span>
             </div>
           </div>

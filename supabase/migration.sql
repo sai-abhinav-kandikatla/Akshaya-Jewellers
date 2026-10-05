@@ -47,28 +47,20 @@ CREATE TABLE IF NOT EXISTS public.coupons (
     cancelled_at TIMESTAMPTZ,
     cancelled_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     whatsapp_status TEXT DEFAULT 'PREPARED' CHECK (whatsapp_status IN ('SENT', 'PREPARED', 'FAILED')),
-    excel_sync_status TEXT NOT NULL DEFAULT 'PENDING' CHECK (excel_sync_status IN ('SYNCED', 'PENDING', 'ERROR')),
-    excel_synced_at TIMESTAMPTZ,
     CONSTRAINT valid_coupon_dates CHECK (valid_until >= valid_from),
     CONSTRAINT unique_coupon_code UNIQUE (coupon_code)
 );
 
 ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS whatsapp_status TEXT DEFAULT 'PREPARED';
-ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS excel_sync_status TEXT NOT NULL DEFAULT 'PENDING';
-ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS excel_synced_at TIMESTAMPTZ;
 
 ALTER TABLE public.coupons DROP CONSTRAINT IF EXISTS coupons_status_check;
 ALTER TABLE public.coupons
     ADD CONSTRAINT coupons_status_check CHECK (status IN ('ACTIVE', 'CLAIMED', 'CANCELLED', 'EXPIRED'));
 
 UPDATE public.coupons
-SET status = 'EXPIRED', excel_sync_status = 'PENDING', excel_synced_at = NULL
+SET status = 'EXPIRED'
 WHERE status = 'ACTIVE'
   AND valid_until < (NOW() AT TIME ZONE 'Asia/Kolkata')::DATE;
-
-UPDATE public.coupons
-SET excel_sync_status = 'PENDING', excel_synced_at = NULL
-WHERE status IN ('CLAIMED', 'CANCELLED', 'EXPIRED');
 
 -- Performance indexes
 CREATE INDEX IF NOT EXISTS idx_coupons_coupon_code ON public.coupons(coupon_code);
