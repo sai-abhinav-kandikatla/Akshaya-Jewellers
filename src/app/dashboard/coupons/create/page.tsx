@@ -7,6 +7,7 @@ import { createCoupon } from '@/app/actions/coupons';
 import { validateCouponForm } from '@/lib/utils/validators';
 import { getTodayIST, formatCurrency } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
+import BottomSheet from '@/components/BottomSheet';
 import type { Coupon } from '@/lib/types';
 
 export default function CreateCouponPage() {
@@ -26,7 +27,7 @@ export default function CreateCouponPage() {
   const [existingCoupon, setExistingCoupon] = useState<Coupon | null>(null);
   const submitLock = useRef(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const safeValue = name === 'mobileNumber' ? value.replace(/\D/g, '').slice(0, 10) : value;
     setFormData(prev => ({ ...prev, [name]: safeValue }));
@@ -34,9 +35,9 @@ export default function CreateCouponPage() {
     setSubmitError('');
     if (errors[name]) {
       setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
+        const next = { ...prev };
+        delete next[name];
+        return next;
       });
     }
   };
@@ -76,126 +77,100 @@ export default function CreateCouponPage() {
         }
         router.push(`/dashboard/coupons/${res.data.coupon_code}/success`);
       } else {
-        setSubmitError(res.error || res.message || 'Failed to create coupon. Please try again.');
+        setSubmitError(res.error || res.message || 'Something went wrong while creating the coupon.');
         submitLock.current = false;
         setIsSubmitting(false);
       }
     } catch (err: any) {
-      setSubmitError(err.message || 'An error occurred while creating the coupon.');
+      setSubmitError(err.message || 'Something went wrong while creating the coupon.');
       submitLock.current = false;
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="create-coupon-page max-w-xl mx-auto space-y-6">
-      {/* Existing Coupon Modal Pop-up */}
+    <div className="space-y-4 max-w-[430px] mx-auto w-full pb-8">
+      {/* Existing Coupon Bottom Sheet */}
       {existingCoupon && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#D4AF37]/40 text-center space-y-4 animate-scaleUp">
-            {/* Top Icon */}
-            <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto text-3xl shadow-xs">
-              📱
-            </div>
-
-            <div>
-              <h3 className="font-serif font-bold text-xl text-[#3E2723]">
-                Coupon Already Exists
-              </h3>
-              <p className="text-xs text-gray-500 mt-1">
-                A gift coupon is already registered for <strong>+91 {existingCoupon.phone_number}</strong>.
-              </p>
-            </div>
-
-            {/* Existing Coupon Details Card */}
-            <div className="bg-[#FAF8F5] rounded-2xl p-4 border border-[#D4AF37]/30 text-left space-y-2.5">
-              <div className="flex justify-between items-center pb-2 border-b border-gray-200/60">
-                <span className="font-mono font-bold text-base text-[#B8860B]">
-                  {existingCoupon.coupon_code}
-                </span>
-                <span className={`badge badge-${computeDisplayStatus(existingCoupon).toLowerCase().replace('_', '-')} text-[10px] px-2.5 py-0.5 font-bold`}>
-                  {computeDisplayStatus(existingCoupon)}
-                </span>
-              </div>
-              <div className="text-xs text-gray-700 space-y-1">
-                <p className="flex justify-between">
-                  <span className="text-gray-400">Customer:</span>
-                  <strong className="text-gray-900">{existingCoupon.customer_name}</strong>
-                </p>
-                <p className="flex justify-between">
-                  <span className="text-gray-400">Value:</span>
-                  <strong className="text-[#3E2723] font-bold">{formatCurrency(existingCoupon.coupon_value ?? existingCoupon.value ?? 0)}</strong>
-                </p>
-                <p className="flex justify-between text-[11px] text-gray-500 pt-0.5">
-                  <span>Validity:</span>
-                  <span>{existingCoupon.valid_from} &rarr; {existingCoupon.valid_until}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="space-y-2 pt-1">
-              <Link
-                href={`/dashboard/coupons/${existingCoupon.coupon_code}`}
-                className="btn btn-primary w-full py-3.5 text-sm font-bold flex items-center justify-center gap-2 rounded-xl shadow-md bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white hover:brightness-105 transition-all"
-              >
-                <span>OPEN THIS COUPON</span>
-                <span>&rarr;</span>
-              </Link>
-              <button
-                type="button"
-                onClick={() => setExistingCoupon(null)}
-                className="btn btn-secondary w-full py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 border border-gray-300 rounded-xl transition-all"
-              >
-                Enter Different Mobile Number
-              </button>
-            </div>
-          </div>
-        </div>
+        <BottomSheet
+          isOpen={true}
+          onClose={() => setExistingCoupon(null)}
+          icon={
+            <svg className="w-6 h-6 text-[#A67C00]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+              <line x1="12" y1="18" x2="12.01" y2="18" />
+            </svg>
+          }
+          title="Coupon Already Exists"
+          description={`A gift coupon is already registered for +91 ${existingCoupon.phone_number}.`}
+          details={{
+            code: existingCoupon.coupon_code,
+            customerName: existingCoupon.customer_name,
+            value: formatCurrency(existingCoupon.coupon_value ?? existingCoupon.value ?? 0),
+            date: `Valid until ${existingCoupon.valid_until}`,
+          }}
+          primaryButtonText="Open Existing"
+          primaryButtonAction={() => router.push(`/dashboard/coupons/${existingCoupon.coupon_code}`)}
+          secondaryButtonText="Change Number"
+          secondaryButtonAction={() => setExistingCoupon(null)}
+        />
       )}
 
-      <div className="page-header flex items-center justify-between">
-        <div>
-          <Link href="/dashboard" className="mobile-form-back md:hidden" aria-label="Back to dashboard">←</Link>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#3E2723]"><span className="hidden-mobile">Create Gift Coupon</span><span className="hidden-desktop">Create Coupon</span></h1>
-          <p className="create-subtitle-desktop text-xs text-gray-500 mt-0.5 hidden-mobile">Generate an exclusive coupon for Akshaya Jewellers</p>
-          <p className="create-subtitle-mobile text-sm text-gray-500 mt-1 hidden-desktop">Enter customer and validity details.</p>
-        </div>
+      {/* 
+        ==================================================
+        15. CREATE SCREEN HEADER
+        ==================================================
+      */}
+      <div className="flex items-center gap-2 pt-1">
+        <Link
+          href="/dashboard"
+          className="text-xs font-semibold text-[#111111] flex items-center gap-1.5 py-1.5 px-2 rounded-xl hover:bg-white transition-colors"
+          aria-label="Back to dashboard"
+        >
+          <svg className="w-4 h-4 text-[#111111]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+          <span className="text-base font-serif font-bold text-[#111111]">Create Coupon</span>
+        </Link>
       </div>
 
-      <div className="card bg-white p-5 sm:p-7 rounded-2xl shadow-md border border-gray-200">
+      {/* Main Form Card */}
+      <div className="bg-white p-5 rounded-2xl border border-[#E7E0CF] shadow-2xs">
         <form onSubmit={handleSubmit} className="space-y-4">
-
           {submitError && (
-            <div className="p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm font-medium">
-              ⚠️ {submitError}
+            <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E7E0CF] text-xs font-medium text-[#111111]">
+              {submitError}
             </div>
           )}
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="customerName">
-              Customer Name <span className="text-red-500">*</span>
+          {/* Customer Name */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#111111] block" htmlFor="customerName">
+              Customer Name <span className="text-[#A67C00]">*</span>
             </label>
             <input
               type="text"
               id="customerName"
               name="customerName"
-              className="form-input"
+              className="w-full h-[52px] px-3.5 rounded-xl border border-[#E7E0CF] bg-white text-sm text-[#111111] placeholder:text-[#999999] focus:outline-none focus:border-[#C9A227] transition-colors"
               value={formData.customerName}
               onChange={handleChange}
-              placeholder="e.g. Rahul / Ananya Sharma"
+              placeholder="e.g. Rahul Sharma"
               autoCapitalize="words"
               required
             />
-            {errors.customerName && <p className="text-xs text-red-600 mt-1 font-medium">{errors.customerName}</p>}
+            {errors.customerName && <p className="text-[11px] text-[#A67C00] font-medium">{errors.customerName}</p>}
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="mobileNumber">
-              <span className="hidden-mobile">Customer Mobile Number (🇮🇳 +91)</span><span className="hidden-desktop">Mobile Number</span> <span className="text-red-500">*</span>
+          {/* Mobile Number (+91) */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#111111] block" htmlFor="mobileNumber">
+              Mobile Number <span className="text-[#A67C00]">*</span>
             </label>
-            <div className="mobile-number-field">
-              <span className="mobile-number-prefix" aria-hidden="true">🇮🇳 +91</span>
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 text-xs font-semibold text-[#666666] select-none">
+                +91
+              </span>
               <input
                 type="tel"
                 id="mobileNumber"
@@ -203,7 +178,7 @@ export default function CreateCouponPage() {
                 inputMode="numeric"
                 pattern="[0-9]{10}"
                 maxLength={10}
-                className="form-input"
+                className="w-full h-[52px] pl-12 pr-3.5 rounded-xl border border-[#E7E0CF] bg-white text-sm text-[#111111] placeholder:text-[#999999] focus:outline-none focus:border-[#C9A227] transition-colors"
                 value={formData.mobileNumber}
                 onChange={handleChange}
                 placeholder="98765 43210"
@@ -211,73 +186,81 @@ export default function CreateCouponPage() {
                 required
               />
             </div>
-            {errors.mobileNumber && <p className="text-xs text-red-600 mt-1 font-medium">{errors.mobileNumber}</p>}
+            {errors.mobileNumber && <p className="text-[11px] text-[#A67C00] font-medium">{errors.mobileNumber}</p>}
           </div>
 
-          <div className="form-group create-coupon-value-field">
-            <label className="form-label" htmlFor="couponValue">
-              Coupon Value (₹) <span className="text-red-500">*</span>
+          {/* Coupon Value (₹) */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-[#111111] block" htmlFor="couponValue">
+              Coupon Value (₹) <span className="text-[#A67C00]">*</span>
             </label>
-            <div className="coupon-value-field">
-              <span className="coupon-value-prefix" aria-hidden="true">₹</span>
+            <div className="relative flex items-center">
+              <span className="absolute left-3.5 text-sm font-bold text-[#666666] select-none">
+                ₹
+              </span>
               <input
                 type="number"
                 id="couponValue"
                 name="couponValue"
                 inputMode="numeric"
-                className="form-input"
+                min="1"
+                step="1"
+                className="w-full h-[52px] pl-8 pr-3.5 rounded-xl border border-[#E7E0CF] bg-white text-sm font-semibold text-[#111111] placeholder:text-[#999999] focus:outline-none focus:border-[#C9A227] transition-colors"
                 value={formData.couponValue}
                 onChange={handleChange}
-                min="1"
-                placeholder="11,111"
+                placeholder="5000"
                 required
               />
             </div>
-            {errors.couponValue && <p className="text-xs text-red-600 mt-1 font-medium">{errors.couponValue}</p>}
+            {errors.couponValue && <p className="text-[11px] text-[#A67C00] font-medium">{errors.couponValue}</p>}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="form-group">
-              <label className="form-label" htmlFor="validFrom">Valid From</label>
+          {/* Valid From & Valid Until */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#111111] block" htmlFor="validFrom">
+                Valid From <span className="text-[#A67C00]">*</span>
+              </label>
               <input
                 type="date"
                 id="validFrom"
                 name="validFrom"
-                className="form-input"
+                className="w-full h-[52px] px-3 rounded-xl border border-[#E7E0CF] bg-white text-xs text-[#111111] focus:outline-none focus:border-[#C9A227] transition-colors"
                 value={formData.validFrom}
                 onChange={handleChange}
                 required
               />
-              {errors.validFrom && <p className="text-xs text-red-600 mt-1 font-medium">{errors.validFrom}</p>}
+              {errors.validFrom && <p className="text-[11px] text-[#A67C00] font-medium">{errors.validFrom}</p>}
             </div>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="validUntil">
-                Valid Until <span className="text-red-500">*</span>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#111111] block" htmlFor="validUntil">
+                Valid Until <span className="text-[#A67C00]">*</span>
               </label>
               <input
                 type="date"
                 id="validUntil"
                 name="validUntil"
-                className="form-input"
+                className="w-full h-[52px] px-3 rounded-xl border border-[#E7E0CF] bg-white text-xs text-[#111111] focus:outline-none focus:border-[#C9A227] transition-colors"
                 value={formData.validUntil}
                 onChange={handleChange}
                 required
               />
-              {errors.validUntil && <p className="text-xs text-red-600 mt-1 font-medium">{errors.validUntil}</p>}
+              {errors.validUntil && <p className="text-[11px] text-[#A67C00] font-medium">{errors.validUntil}</p>}
             </div>
           </div>
 
-          <div className="create-submit-wrap pt-4">
+          {/* Submit Button (Section 15: 56px height, gold, black text) */}
+          <div className="pt-3">
             <button
               type="submit"
-              className="create-submit btn btn-primary btn-lg w-full font-bold text-base shadow-lg rounded-xl transition-all"
               disabled={isSubmitting}
+              className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#C9A227] to-[#A67C00] text-[#111111] font-bold text-sm tracking-wider uppercase shadow-sm hover:brightness-105 active:brightness-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="loading-spinner w-5 h-5 border-2 border-black border-t-transparent inline-block rounded-full animate-spin" />
-                  GENERATING...
+                  <span className="w-5 h-5 border-2 border-[#111111] border-t-transparent inline-block rounded-full animate-spin" />
+                  <span>Generating…</span>
                 </span>
               ) : (
                 'GENERATE COUPON'

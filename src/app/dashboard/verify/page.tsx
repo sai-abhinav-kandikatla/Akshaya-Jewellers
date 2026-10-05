@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { getCouponByCode, claimCoupon } from '@/app/actions/coupons';
-import { formatCurrency, formatIndianDate, formatDateTime } from '@/lib/utils/formatters';
+import { formatCurrency, formatIndianDate } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
+import BottomSheet from '@/components/BottomSheet';
 import { Coupon } from '@/lib/types';
 import QRScanner from '@/components/QRScanner';
 
@@ -17,15 +19,14 @@ export default function VerifyCouponPage() {
   
   const [modalOpen, setModalOpen] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
-  const [toast, setToast] = useState<{ id: number, message: string, type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ id: number, message: string } | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.toUpperCase();
-    setCode(val);
+    setCode(e.target.value.toUpperCase());
   };
 
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ id: Date.now(), message, type });
+  const showToast = (message: string) => {
+    setToast({ id: Date.now(), message });
     setTimeout(() => setToast(null), 3000);
   };
 
@@ -40,7 +41,7 @@ export default function VerifyCouponPage() {
         setCoupon(data);
         setCode(searchCode);
       } else {
-        setError('Coupon not found. Please check the code and try again.');
+        setError('Coupon not found. Please verify the code.');
       }
     } catch (err: any) {
       setError(err.message || 'Error verifying coupon');
@@ -90,94 +91,108 @@ export default function VerifyCouponPage() {
       if (!result.success) {
         const latest = await getCouponByCode(coupon.coupon_code).catch(() => null);
         if (latest) setCoupon(latest);
-        showToast(result.error || result.message || 'Failed to claim coupon.', 'error');
+        showToast(result.error || result.message || 'Failed to claim coupon.');
         return;
       }
 
-      setCoupon(previous => previous ? {
-        ...previous,
+      setCoupon(prev => prev ? {
+        ...prev,
         status: 'CLAIMED',
         claimed_at: new Date().toISOString(),
-      } : previous);
-      showToast('Coupon claimed successfully!', 'success');
+      } : prev);
+      showToast('✓ Coupon Claimed');
     } catch (err: any) {
-      showToast(err.message || 'Failed to claim coupon', 'error');
+      showToast(err.message || 'Unable to claim coupon.');
     } finally {
       setIsClaiming(false);
       setModalOpen(false);
     }
   };
 
-  const getStatusEmoji = (status: string) => {
-    switch (status) {
-      case 'ACTIVE': return '✅';
-      case 'CLAIMED': return '🎉';
-      case 'EXPIRED': return '⏰';
-      case 'NOT_ACTIVE': return '⏳';
-      case 'CANCELLED': return '❌';
-      default: return '❓';
-    }
-  };
+  const status = coupon ? computeDisplayStatus(coupon) : null;
 
   return (
-    <div className="dashboard-page verify-page">
+    <div className="space-y-4 max-w-[430px] mx-auto w-full pb-8">
+      {/* Toast */}
       {toast && (
-        <div className="toast-container">
-          <div role={toast.type === 'error' ? 'alert' : 'status'} aria-live={toast.type === 'error' ? 'assertive' : 'polite'} className={`toast toast-${toast.type}`}>{toast.message}</div>
-        </div>
-      )}
-
-      {/* Confirmation Modal */}
-      {modalOpen && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="modal card" style={{ maxWidth: '400px', width: '100%', background: '#fff', borderRadius: '8px', padding: '1.5rem' }}>
-            <div className="modal-header">
-              <h3 style={{ marginBottom: '1rem', color: '#166534' }}>Confirm Claim</h3>
-            </div>
-            <div className="modal-body" style={{ marginBottom: '1.5rem' }}>
-              <p>Are you sure you want to claim this coupon?</p>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.5rem' }}>This will mark the coupon as used and cannot be undone.</p>
-            </div>
-            <div className="modal-footer verify-modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button className="btn btn-ghost" onClick={() => setModalOpen(false)} disabled={isClaiming}>
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={handleClaim} disabled={isClaiming}>
-                {isClaiming ? 'Claiming...' : 'Yes, Claim Coupon'}
-              </button>
-            </div>
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50">
+          <div className="px-4 py-2 rounded-full bg-white border border-[#E7E0CF] text-xs font-semibold text-[#111111] shadow-lg">
+            {toast.message}
           </div>
         </div>
       )}
 
-      <div className="page-header verify-page-header" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2rem' }}>Verify Gift Coupon</h1>
-        <p className="text-muted" style={{ marginTop: '0.5rem' }}>Enter a coupon code to check its validity and status.</p>
+      {/* Claim Confirmation Bottom Sheet */}
+      {coupon && (
+        <BottomSheet
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          icon={
+            <svg className="w-6 h-6 text-[#A67C00]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          }
+          title="Claim Coupon"
+          description="Are you sure you want to redeem this coupon? This action cannot be undone."
+          details={{
+            code: coupon.coupon_code,
+            customerName: coupon.customer_name,
+            value: formatCurrency(coupon.coupon_value ?? coupon.value ?? 0),
+            date: `Valid until ${formatIndianDate(coupon.valid_until)}`,
+          }}
+          primaryButtonText="Confirm Claim"
+          primaryButtonAction={handleClaim}
+          secondaryButtonText="Go Back"
+          secondaryButtonAction={() => setModalOpen(false)}
+          isLoading={isClaiming}
+        />
+      )}
+
+      {/* 
+        ==================================================
+        26. VERIFY SCREEN HEADER
+        ==================================================
+      */}
+      <div className="flex items-center gap-2 pt-1">
+        <Link
+          href="/dashboard"
+          className="text-xs font-semibold text-[#111111] flex items-center gap-1.5 py-1.5 px-2 rounded-xl hover:bg-white transition-colors"
+          aria-label="Back to dashboard"
+        >
+          <svg className="w-4 h-4 text-[#111111]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+          <span className="text-base font-serif font-bold text-[#111111]">Verify Coupon</span>
+        </Link>
       </div>
 
-      <div className="card verify-search-card p-4 space-y-4">
-        {/* Quick QR Scanner Action Button */}
+      {/* Main Search Input Card */}
+      <div className="bg-white p-5 rounded-2xl border border-[#E7E0CF] shadow-2xs space-y-4">
+        {/* QR Scanner Trigger Button */}
         <button
           type="button"
           onClick={() => setIsScanningQR(true)}
-          className="btn btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#2d2d2d] text-[#d4af37] border-2 border-[#d4af37] rounded-2xl shadow-md transition-transform active:scale-[0.99]"
+          className="w-full h-12 rounded-xl bg-white border border-[#E7E0CF] text-[#111111] font-semibold text-xs flex items-center justify-center gap-2 hover:bg-gray-50 active:bg-gray-100 transition-colors"
         >
-          <span className="text-xl">📷</span>
-          <span>SCAN QR CODE WITH CAMERA</span>
+          <svg className="w-4 h-4 text-[#A67C00]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+          </svg>
+          <span>Scan QR Code with Camera</span>
         </button>
 
-        <div className="flex items-center gap-3">
-          <div className="h-px bg-gray-200 flex-1" />
-          <span className="text-[11px] uppercase text-gray-400 font-semibold tracking-wider">or enter coupon code</span>
-          <div className="h-px bg-gray-200 flex-1" />
+        <div className="flex items-center gap-2.5">
+          <div className="h-px bg-[#E7E0CF] flex-1" />
+          <span className="text-[10px] uppercase text-[#666666] font-semibold tracking-wider">or enter coupon code</span>
+          <div className="h-px bg-[#E7E0CF] flex-1" />
         </div>
 
-        <form onSubmit={handleVerify} className="verify-form space-y-3">
-          <label className="sr-only" htmlFor="verifyCouponCode">Coupon code</label>
+        <form onSubmit={handleVerify} className="space-y-3">
           <input
             type="text"
-            id="verifyCouponCode"
-            className="verify-input verify-code-input form-input text-center tracking-widest font-mono text-lg"
+            className="w-full h-[52px] px-3.5 rounded-xl border border-[#E7E0CF] bg-white text-center font-mono font-bold text-base text-[#111111] placeholder:text-[#999999] tracking-wider focus:outline-none focus:border-[#C9A227] transition-colors"
             value={code}
             onChange={handleInputChange}
             placeholder="AKS-XXXXXX"
@@ -185,12 +200,13 @@ export default function VerifyCouponPage() {
             autoComplete="off"
             spellCheck={false}
           />
-          <button 
-            type="submit" 
-            className="btn btn-primary btn-lg verify-submit w-full"
+
+          <button
+            type="submit"
             disabled={isLoading || !code.trim()}
+            className="w-full h-13 rounded-xl bg-gradient-to-r from-[#C9A227] to-[#A67C00] text-white font-bold text-sm tracking-wider uppercase shadow-sm hover:brightness-105 active:brightness-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {isLoading ? 'VERIFYING...' : 'VERIFY COUPON'}
+            {isLoading ? 'Verifying…' : 'Verify Coupon'}
           </button>
         </form>
       </div>
@@ -203,95 +219,67 @@ export default function VerifyCouponPage() {
         />
       )}
 
-      {isLoading && (
-        <div role="status" style={{ textAlign: 'center', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-          <div className="loading-spinner" />
-          <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>Checking...</span>
-        </div>
-      )}
-
+      {/* Error State */}
       {error && !isLoading && (
-        <div role="alert" className="empty-state" style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '2rem', textAlign: 'center' }}>
-          <svg viewBox="0 0 24 24" width="48" height="48" stroke="#ef4444" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 1rem' }}>
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <h3 style={{ color: '#b91c1c' }}>{error}</h3>
+        <div className="p-4 bg-white rounded-2xl border border-[#E7E0CF] text-center space-y-1">
+          <p className="text-xs font-semibold text-[#111111]">{error}</p>
+          <p className="text-[11px] text-[#666666]">Please check the code and try again.</p>
         </div>
       )}
 
-      {coupon && !isLoading && (
-        <div className="card result-card verify-result-card" style={{ padding: '2rem', borderTop: '4px solid #d4af37' }}>
-          {(() => {
-            const status = computeDisplayStatus(coupon);
-            return (
-              <>
-                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                  <div style={{ fontSize: '4rem', lineHeight: 1, marginBottom: '0.5rem' }}>
-                    {getStatusEmoji(status)}
-                  </div>
-                  <span className={`badge badge-${status.toLowerCase().replace('_', '-')}`} style={{ fontSize: '1.25rem', padding: '0.5rem 1rem' }}>
-                    {status}
-                  </span>
-                </div>
+      {/* 
+        ==================================================
+        Verified Result Card (Section 26)
+        ==================================================
+      */}
+      {coupon && status && (
+        <div className="bg-white p-5 rounded-2xl border border-[#E7E0CF] shadow-2xs space-y-4">
+          <div className="text-center pb-3 border-b border-[#F2EDE2]">
+            <p className="text-[11px] uppercase tracking-wider font-semibold text-[#A67C00]">
+              ✓ Valid Coupon
+            </p>
+            <h2 className="text-xl font-mono font-bold text-[#111111] mt-0.5 tracking-tight">
+              {coupon.coupon_code}
+            </h2>
+            <p className="text-xl font-bold text-[#A67C00] mt-1">
+              {formatCurrency(coupon.coupon_value ?? coupon.value ?? 0)}
+            </p>
+          </div>
 
-                <div className="verify-result-grid">
-                  <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px' }}>
-                    <p className="stat-label">Customer Name</p>
-                    <p style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{coupon.customer_name}</p>
-                  </div>
-                  <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px' }}>
-                    <p className="stat-label">Coupon Value</p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#d4af37' }}>{formatCurrency(coupon.value)}</p>
-                  </div>
-                  <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px' }}>
-                    <p className="stat-label">Valid From</p>
-                    <p style={{ fontWeight: '500' }}>{formatIndianDate(coupon.valid_from)}</p>
-                  </div>
-                  <div style={{ padding: '1rem', background: '#f9fafb', borderRadius: '8px' }}>
-                    <p className="stat-label">Valid Until</p>
-                    <p style={{ fontWeight: '500' }}>{formatIndianDate(coupon.valid_until)}</p>
-                  </div>
-                </div>
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between py-1 border-b border-[#FAF8F5]">
+              <span className="text-[#666666]">Customer</span>
+              <span className="font-semibold text-[#111111]">{coupon.customer_name}</span>
+            </div>
 
-                <div style={{ padding: '1.5rem', borderRadius: '8px', background: status === 'ACTIVE' ? '#f0fdf4' : '#f8fafc', border: `1px solid ${status === 'ACTIVE' ? '#bbf7d0' : '#e2e8f0'}`, textAlign: 'center' }}>
-                  {status === 'ACTIVE' && (
-                    <>
-                      <p style={{ color: '#166534', fontWeight: 'bold', marginBottom: '1rem' }}>This coupon is valid and ready to be claimed.</p>
-                      <button className="btn btn-primary btn-lg" onClick={() => setModalOpen(true)} style={{ width: '100%', maxWidth: '300px' }}>
-                        CLAIM COUPON
-                      </button>
-                    </>
-                  )}
-                  {status === 'CLAIMED' && (
-                    <div>
-                      <p style={{ color: '#166534', fontWeight: 'bold', fontSize: '1.1rem' }}>This coupon is claimed.</p>
-                      <p style={{ marginTop: '0.5rem' }}>Claimed on: {coupon.claimed_at ? formatDateTime(coupon.claimed_at) : 'Unknown'}</p>
-                    </div>
-                  )}
-                  {status === 'EXPIRED' && (
-                    <div>
-                      <p style={{ color: '#b91c1c', fontWeight: 'bold', fontSize: '1.1rem' }}>This coupon has expired.</p>
-                      <p style={{ marginTop: '0.5rem' }}>Expired on: {formatIndianDate(coupon.valid_until)}</p>
-                    </div>
-                  )}
-                  {status === 'NOT_ACTIVE' && (
-                    <div>
-                      <p style={{ color: '#b45309', fontWeight: 'bold', fontSize: '1.1rem' }}>This coupon is not yet active.</p>
-                      <p style={{ marginTop: '0.5rem' }}>Becomes active on: {formatIndianDate(coupon.valid_from)}</p>
-                    </div>
-                  )}
-                  {status === 'CANCELLED' && (
-                    <div>
-                      <p style={{ color: '#991b1b', fontWeight: 'bold', fontSize: '1.1rem' }}>This coupon was cancelled.</p>
-                      <p style={{ marginTop: '0.5rem' }}>Cancelled on: {coupon.cancelled_at ? formatDateTime(coupon.cancelled_at) : 'Unknown'}</p>
-                    </div>
-                  )}
-                </div>
-              </>
-            );
-          })()}
+            <div className="flex justify-between py-1 border-b border-[#FAF8F5]">
+              <span className="text-[#666666]">Status</span>
+              <span className="font-semibold text-[#111111]">{status.replace('_', ' ')}</span>
+            </div>
+
+            <div className="flex justify-between py-1 border-b border-[#FAF8F5]">
+              <span className="text-[#666666]">Valid Until</span>
+              <span className="font-semibold text-[#111111]">{formatIndianDate(coupon.valid_until)}</span>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            {status === 'ACTIVE' ? (
+              <button
+                onClick={() => setModalOpen(true)}
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-[#C9A227] to-[#A67C00] text-white font-bold text-xs uppercase tracking-wider shadow-sm hover:brightness-105 active:brightness-95 transition-all"
+              >
+                Claim / Redeem Coupon
+              </button>
+            ) : (
+              <Link
+                href={`/dashboard/coupons/${coupon.coupon_code}`}
+                className="w-full h-12 rounded-xl bg-white border border-[#E7E0CF] text-[#111111] font-semibold text-xs flex items-center justify-center hover:bg-gray-50 transition-colors"
+              >
+                View Full Details
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </div>

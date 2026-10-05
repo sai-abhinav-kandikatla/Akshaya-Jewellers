@@ -2,35 +2,31 @@
 @import 'tailwindcss';
 
 :root {
-  /* Gold Palette */
-  --gold-50: #fbf8f1;
-  --gold-100: #f5eedc;
-  --gold-200: #ebdca4;
-  --gold-300: #e2ca6c;
-  --gold-400: #d9b834;
-  --gold-500: #daa520; /* Primary Gold */
-  --gold-600: #b8860b;
-  --gold-700: #8b6508;
+  /* Strict Mobile Design System (Master Prompt) */
+  --gold-primary: #C9A227;
+  --gold-dark: #A67C00;
+  --gold-light: #F6E8B1;
+  --gold-border: #E7E0CF;
   
-  /* Warm Neutrals */
-  --ivory: #fffff0;
-  --cream: #fdfbf7;
-  --warm-white: #faf9f6;
-  --bg-primary: var(--warm-white);
-  --bg-secondary: #f4f1ea;
+  /* Primary & Neutral Surfaces */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #FAF8F5;
+  --ivory: #FFFFF0;
+  --cream: #FAF8F2;
+  --white: #FFFFFF;
   
   /* Dark Tones */
-  --charcoal: #2c2c2c;
-  --deep-brown: #3e2723;
-  --dark-text: #1a1a1a;
-  --text-muted: #6b7280;
+  --dark-text: #111111;
+  --charcoal: #111111;
+  --text-muted: #666666;
+  --deep-brown: #111111;
   
-  /* Status Colors */
-  --status-active: #2e7d32;
-  --status-not-active: #f9a825;
-  --status-claimed: #1565c0;
-  --status-expired: #c62828;
-  --status-cancelled: #616161;
+  /* Status Colors (Strict Gold/Black/Gray - NO green/red/blue) */
+  --status-active: #A67C00;
+  --status-not-active: #A67C00;
+  --status-claimed: #111111;
+  --status-expired: #666666;
+  --status-cancelled: #666666;
   
   /* Typography */
   --font-heading: 'Playfair Display', serif;
@@ -289,40 +285,47 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
   padding-left: 38px;
 }
 
-/* Badges */
+/* Badges (Strict Gold/Black/Gray System) */
 .badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
 }
 
 .badge-active {
-  background-color: var(--status-active);
-  color: white;
+  background-color: #FDF8E7;
+  color: #A67C00;
+  border: 1px solid #C9A227;
 }
 
 .badge-not-active {
-  background-color: var(--status-not-active);
-  color: white;
+  background-color: #FDF8E7;
+  color: #A67C00;
+  border: 1px solid #C9A227;
 }
 
 .badge-claimed {
-  background-color: var(--status-claimed);
-  color: white;
+  background-color: #FAF8F2;
+  color: #111111;
+  border: 1px solid #E7E0CF;
 }
 
 .badge-expired {
-  background-color: var(--status-expired);
-  color: white;
+  background-color: #F5F5F5;
+  color: #666666;
+  border: 1px solid #E5E5E5;
 }
 
 .badge-cancelled {
-  background-color: var(--status-cancelled);
-  color: white;
+  background-color: #F5F5F5;
+  color: #666666;
+  border: 1px solid #E5E5E5;
 }
 
 /* QR Scanner Viewfinder Overrides */
