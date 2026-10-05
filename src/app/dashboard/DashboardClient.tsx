@@ -73,26 +73,58 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
         </div>
       </div>
 
-      {/* Compact 2-Column Mobile Metric Grid (Master Prompt Section 8) */}
-      <div className="dashboard-stat-section">
-        <h2 className="dashboard-stat-heading text-sm font-bold uppercase tracking-wider text-gray-600 mb-2">Coupon Overview</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <CompactStatCard title="ACTIVE" count={initialStats?.active_count || 0} color="border-l-4 border-green-500 bg-green-50/40" textColor="text-green-700" />
-        <CompactStatCard title="CLAIMED" count={initialStats?.claimed_count || 0} color="border-l-4 border-blue-500 bg-blue-50/40" textColor="text-blue-700" />
-        <CompactStatCard title="EXPIRED" count={initialStats?.expired_count || 0} color="border-l-4 border-red-500 bg-red-50/40" textColor="text-red-700" />
-        <CompactStatCard title="CANCELLED" count={initialStats?.cancelled_count || 0} color="border-l-4 border-gray-400 bg-gray-50" textColor="text-gray-700" />
-        <div className="hidden-mobile"><CompactStatCard title="CLAIMED VALUE" count={formatCurrency(initialStats?.claimed_value || 0)} color="border-l-4 border-[#D4AF37] bg-gold-50/40" textColor="text-[#b8860b]" isValueOnly /></div>
-      </div>
+      {/* Coupon Value Overview (User Request: Total Value, Active Value, Claimed Value, Expired Value) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-700">
+            Coupon Value Overview
+          </h2>
+          <span className="text-[10px] sm:text-xs font-semibold text-[#8b6508] bg-[#FAF8F5] px-2.5 py-0.5 rounded-full border border-[#D4AF37]/30">
+            INR (₹)
+          </span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <CompactStatCard 
+            title="TOTAL VALUE" 
+            count={formatCurrency(initialStats?.total_value || 0)} 
+            color="border-l-4 border-[#3E2723] bg-stone-50" 
+            textColor="text-[#3E2723]" 
+            isValueOnly 
+          />
+          <CompactStatCard 
+            title="ACTIVE VALUE" 
+            count={formatCurrency(initialStats?.active_value || 0)} 
+            color="border-l-4 border-green-600 bg-green-50/40" 
+            textColor="text-green-700" 
+            isValueOnly 
+          />
+          <CompactStatCard 
+            title="CLAIMED VALUE" 
+            count={formatCurrency(initialStats?.claimed_value || 0)} 
+            color="border-l-4 border-blue-600 bg-blue-50/40" 
+            textColor="text-blue-700" 
+            isValueOnly 
+          />
+          <CompactStatCard 
+            title="EXPIRED VALUE" 
+            count={formatCurrency(initialStats?.expired_value || 0)} 
+            color="border-l-4 border-red-600 bg-red-50/40" 
+            textColor="text-red-700" 
+            isValueOnly 
+          />
+        </div>
       </div>
 
-      <div className="dashboard-value-summary card bg-white border border-gray-200 rounded-2xl shadow-sm grid grid-cols-2 divide-x divide-gray-100 md:hidden">
-        <div className="p-4">
-          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total Value</p>
-          <p className="text-lg font-bold text-[#3E2723] mt-1">{formatCurrency(initialStats?.total_value || 0)}</p>
-        </div>
-        <div className="p-4">
-          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Claimed Value</p>
-          <p className="text-lg font-bold text-[#8b6600] mt-1">{formatCurrency(initialStats?.claimed_value || 0)}</p>
+      {/* Coupon Count Overview */}
+      <div className="space-y-2">
+        <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-700">
+          Coupon Status Overview
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <CompactStatCard title="ACTIVE" count={initialStats?.active_count || 0} color="border-l-4 border-green-500 bg-green-50/40" textColor="text-green-700" />
+          <CompactStatCard title="CLAIMED" count={initialStats?.claimed_count || 0} color="border-l-4 border-blue-500 bg-blue-50/40" textColor="text-blue-700" />
+          <CompactStatCard title="EXPIRED" count={initialStats?.expired_count || 0} color="border-l-4 border-red-500 bg-red-50/40" textColor="text-red-700" />
+          <CompactStatCard title="CANCELLED" count={initialStats?.cancelled_count || 0} color="border-l-4 border-gray-400 bg-gray-50" textColor="text-gray-700" />
         </div>
       </div>
 
@@ -153,12 +185,15 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
 
 function CompactStatCard({ title, count, value, color, textColor, isValueOnly }: any) {
   return (
-    <div className={`p-3.5 rounded-xl border border-gray-200 shadow-sm ${color}`}>
+    <div className={`p-3.5 rounded-xl border border-gray-200/90 shadow-xs transition-shadow hover:shadow-sm ${color}`}>
       <p className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">{title}</p>
-      <p className={`text-xl sm:text-2xl font-bold mt-1 ${textColor}`}>
+      <p 
+        className={`${isValueOnly ? 'text-base sm:text-xl font-bold' : 'text-xl sm:text-2xl font-bold'} mt-1 tracking-tight truncate ${textColor}`}
+        title={typeof count === 'string' ? count : undefined}
+      >
         {isValueOnly ? count : (typeof count === 'number' ? new Intl.NumberFormat('en-IN').format(count) : count)}
       </p>
-      {value && <p className="text-[11px] font-semibold text-gray-600 mt-0.5">{value}</p>}
+      {value && <p className="text-[11px] font-semibold text-gray-600 mt-0.5 truncate">{value}</p>}
     </div>
   );
 }
