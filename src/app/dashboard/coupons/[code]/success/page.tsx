@@ -182,29 +182,33 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
 
       {/* Primary Actions (Master Prompt Section 16) */}
       <div className="space-y-3">
-        <button
-          onClick={handleWhatsApp}
-          className="btn btn-whatsapp btn-lg w-full font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
-        >
-          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-          </svg>
-          {whatsappStatus === 'SENT' ? 'RESEND ON WHATSAPP' : 'SEND ON WHATSAPP'}
-        </button>
+        {displayStatus !== 'CLAIMED' && (
+          <button
+            onClick={handleWhatsApp}
+            className="btn btn-whatsapp btn-lg w-full font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
+          >
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+            {whatsappStatus === 'SENT' ? 'RESEND ON WHATSAPP' : 'SEND ON WHATSAPP'}
+          </button>
+        )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid ${displayStatus === 'CLAIMED' ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
           <Link
             href={`/dashboard/coupons/${coupon.coupon_code}`}
             className="btn btn-secondary text-center text-sm py-3 font-semibold rounded-xl"
           >
             VIEW COUPON
           </Link>
-          <button
-            onClick={handleCopyCode}
-            className="btn btn-ghost text-center text-sm py-3 border border-gray-300 rounded-xl"
-          >
-            COPY CODE
-          </button>
+          {displayStatus !== 'CLAIMED' && (
+            <button
+              onClick={handleCopyCode}
+              className="btn btn-ghost text-center text-sm py-3 border border-gray-300 rounded-xl"
+            >
+              COPY CODE
+            </button>
+          )}
         </div>
 
         <Link

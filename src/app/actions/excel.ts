@@ -5,6 +5,65 @@ import { ApiResponse, Coupon } from '@/lib/types';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import { formatDateIndian } from '@/lib/utils/formatters';
 
+const graphTableUrl = (fileId: string) =>
+  `https://graph.microsoft.com/v1.0/me/drive/items/${fileId}/workbook/tables/CouponsTable`;
+
+type ExcelTableRow = { index?: number; values?: unknown[][] };
+
+function excelValues(coupon: Coupon) {
+  const displayStatus = computeDisplayStatus(coupon.status, coupon.valid_from, coupon.valid_until);
+  return [
+    coupon.coupon_code,
+    coupon.customer_name,
+    coupon.phone_number,
+    Number(coupon.value || (coupon as any).coupon_value || 0),
+    coupon.campaign_id || 'Direct',
+    formatDateIndian(coupon.valid_from),
+    formatDateIndian(coupon.valid_until),
+    displayStatus,
+    formatDateIndian(coupon.created_at),
+    coupon.claimed_at ? formatDateIndian(coupon.claimed_at) : '—',
+    coupon.claimed_by || '—',
+  ];
+}
+
+async function responseError(response: Response) {
+  const data = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+  return data?.error?.message || `Microsoft Excel sync failed (${response.status}).`;
+}
+
+async function loadExcelRows(token: string, fileId: string): Promise<ExcelTableRow[]> {
+  const rows: ExcelTableRow[] = [];
+  const pageSize = 500;
+  const maxRows = 100_000;
+
+  for (let skip = 0; skip < maxRows; skip += pageSize) {
+    const response = await fetch(`${graphTableUrl(fileId)}/rows?$top=${pageSize}&$skip=${skip}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(await responseError(response));
+
+    const page = await response.json() as { value?: ExcelTableRow[] };
+    const pageRows = Array.isArray(page.value) ? page.value : [];
+    rows.push(...pageRows);
+    if (pageRows.length < pageSize) return rows;
+  }
+
+  throw new Error('Excel table is too large to safely locate coupon rows.');
+}
+
+async function updateSyncStatus(couponId: string, status: 'SYNCED' | 'PENDING' | 'ERROR') {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('coupons')
+    .update({
+      excel_sync_status: status,
+      excel_synced_at: status === 'SYNCED' ? new Date().toISOString() : null,
+    })
+    .eq('id', couponId);
+  if (error) throw new Error(`Could not save Excel sync status: ${error.message}`);
+}
+
 export interface ExcelSyncResult {
   status: 'SYNCED' | 'PENDING' | 'ERROR';
   configured: boolean;
@@ -18,94 +77,83 @@ export interface ExcelSyncResult {
 /**
  * Synchronize a coupon to Microsoft Excel / Cloud Reporting layer
  */
-export async function syncCouponToExcel(coupon: Coupon): Promise<ApiResponse> {
+export async function syncCouponsToExcel(coupons: Coupon[]): Promise<ApiResponse[]> {
+  if (coupons.length === 0) return [];
+
+  const token = process.env.MICROSOFT_GRAPH_ACCESS_TOKEN;
+  const fileId = process.env.ONEDRIVE_EXCEL_FILE_ID;
+  if (!token || !fileId) {
+    await Promise.all(coupons.map((coupon) => updateSyncStatus(coupon.id, 'PENDING').catch(() => undefined)));
+    return coupons.map(() => ({
+      success: false,
+      error: 'Microsoft Excel sync is pending because Graph credentials are not configured.',
+    }));
+  }
+
+  let rowIndexes = new Map<string, number[]>();
   try {
-    const supabase = createAdminClient();
-    const displayStatus = computeDisplayStatus(coupon.status, coupon.valid_from, coupon.valid_until);
-
-    const msGraphToken = process.env.MICROSOFT_GRAPH_ACCESS_TOKEN;
-    const excelFileId = process.env.ONEDRIVE_EXCEL_FILE_ID;
-
-    // Row Data payload conforming to Section 19 of Master Prompt
-    const rowData = {
-      'Coupon Code': coupon.coupon_code,
-      'Customer': coupon.customer_name,
-      'Phone': coupon.phone_number,
-      'Value': Number(coupon.value || (coupon as any).coupon_value || 0),
-      'Campaign': coupon.campaign_id || 'Direct',
-      'Valid From': formatDateIndian(coupon.valid_from),
-      'Valid Until': formatDateIndian(coupon.valid_until),
-      'Status': displayStatus,
-      'Created At': formatDateIndian(coupon.created_at),
-      'Claimed At': coupon.claimed_at ? formatDateIndian(coupon.claimed_at) : '—',
-      'Claimed By': coupon.claimed_by || '—',
-    };
-
-    if (!msGraphToken || !excelFileId) {
-      await supabase
-        .from('coupons')
-        .update({ excel_sync_status: 'PENDING', excel_synced_at: null })
-        .eq('id', coupon.id);
-
-      return {
-        success: false,
-        error: 'Microsoft Excel sync is pending because Graph credentials are not configured.',
-      };
+    const rows = await loadExcelRows(token, fileId);
+    rowIndexes = new Map();
+    for (const row of rows) {
+      const index = Number(row.index);
+      const code = String(row.values?.[0] ?? '').trim().toUpperCase();
+      if (!Number.isInteger(index) || !code) continue;
+      rowIndexes.set(code, [...(rowIndexes.get(code) || []), index]);
     }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to read Excel rows.';
+    await Promise.all(coupons.map((coupon) => updateSyncStatus(coupon.id, 'ERROR').catch(() => undefined)));
+    return coupons.map(() => ({ success: false, error: message }));
+  }
 
-    {
-      // Execute live Microsoft Graph API Excel workbook row insert/update
-      const graphUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${excelFileId}/workbook/tables/CouponsTable/rows/add`;
-      const res = await fetch(graphUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${msGraphToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          values: [[
-            rowData['Coupon Code'],
-            rowData['Customer'],
-            rowData['Phone'],
-            rowData['Value'],
-            rowData['Campaign'],
-            rowData['Valid From'],
-            rowData['Valid Until'],
-            rowData['Status'],
-            rowData['Created At'],
-            rowData['Claimed At'],
-            rowData['Claimed By'],
-          ]],
-        }),
-      });
+  const results: ApiResponse[] = new Array(coupons.length);
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < coupons.length) {
+      const current = cursor++;
+      const coupon = coupons[current];
+      try {
+        const matches = rowIndexes.get(coupon.coupon_code.trim().toUpperCase()) || [];
+        const values = excelValues(coupon);
+        const requests = matches.length
+          ? matches.map((index) => fetch(`${graphTableUrl(fileId)}/rows/${index}`, {
+              method: 'PATCH',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ index, values: [values] }),
+            }))
+          : [fetch(`${graphTableUrl(fileId)}/rows/add`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ values: [values] }),
+            })];
 
-      if (res.ok) {
-        await supabase
-          .from('coupons')
-          .update({
-            excel_sync_status: 'SYNCED',
-            excel_synced_at: new Date().toISOString(),
-          } as any)
-          .eq('id', coupon.id);
+        const responses = await Promise.all(requests);
+        const failed = responses.find((response) => !response.ok);
+        if (failed) throw new Error(await responseError(failed));
 
-        return { success: true, message: 'Synchronized live to Microsoft Excel Workbook.' };
-      } else {
-        const errorData = await res.json().catch(() => null) as { error?: { message?: string } } | null;
-        console.warn('Microsoft Graph Excel sync error:', errorData);
-        await supabase
-          .from('coupons')
-          .update({ excel_sync_status: 'ERROR', excel_synced_at: null })
-          .eq('id', coupon.id);
-        return {
-          success: false,
-          error: errorData?.error?.message || `Microsoft Excel sync failed (${res.status}).`,
-        };
+        await updateSyncStatus(coupon.id, 'SYNCED');
+        results[current] = { success: true, message: 'Excel row updated.' };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to sync coupon to Excel.';
+        await updateSyncStatus(coupon.id, 'ERROR').catch(() => undefined);
+        results[current] = { success: false, error: message };
       }
     }
-  } catch (err: any) {
-    console.error('syncCouponToExcel exception:', err);
-    return { success: false, error: err.message || 'Failed to sync to Excel.' };
-  }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(6, coupons.length) }, worker));
+  return results;
+}
+
+export async function syncCouponToExcel(coupon: Coupon): Promise<ApiResponse> {
+  const [result] = await syncCouponsToExcel([coupon]);
+  return result;
 }
 
 /**
@@ -182,7 +230,7 @@ export async function triggerExcelSyncNow(): Promise<ApiResponse> {
       return { success: true, message: 'No pending coupons need Excel sync.' };
     }
 
-    const results = await Promise.all(coupons.map((coupon) => syncCouponToExcel(coupon)));
+    const results = await syncCouponsToExcel(coupons);
     const failures = results.filter((result) => !result.success);
     if (failures.length) {
       return {

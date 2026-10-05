@@ -27,7 +27,7 @@
 5. Click **Run**
 6. You should see "Success" — this creates all tables, indexes, RLS policies, and RPC functions
 
-For an existing deployment, run `supabase/prevent_duplicate_coupon_numbers.sql` in the SQL Editor to add the one-coupon-per-mobile safeguard without rerunning the full migration.
+For an existing deployment, run `supabase/automatic_coupon_expiry_and_excel_sync.sql` and `supabase/prevent_duplicate_coupon_numbers.sql` once in the SQL Editor. The first migration enables stored expiry and queues old terminal coupons for Excel reconciliation; the second adds the one-coupon-per-mobile safeguard.
 
 ---
 
@@ -45,6 +45,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 ADMIN_USERNAME=Akshaya_Jewellers
 ADMIN_PASSWORD=replace_with_a_strong_password
 ADMIN_SESSION_SECRET=replace_with_a_random_secret
+CRON_SECRET=replace_with_a_random_secret_at_least_16_characters
 ```
 
 > ⚠️ Never commit `.env.local` to version control!
@@ -99,9 +100,11 @@ After creating your admin account, to prevent others from signing up:
    - `ADMIN_USERNAME`
    - `ADMIN_PASSWORD`
    - `ADMIN_SESSION_SECRET`
+   - `CRON_SECRET`
    Keep the admin variables server-only; do not prefix them with `NEXT_PUBLIC_`.
 4. Make sure they apply to the **Production** environment (and Preview too if you test there).
 5. Deploy or redeploy after saving the variables. Existing Vercel deployments do not receive environment-variable changes.
+6. Set the same `CRON_SECRET` in each production Vercel project connected to this repository. The daily expiry job runs around 00:00 IST; the UI and redemption checks treat past-date coupons as expired immediately.
 
 ---
 

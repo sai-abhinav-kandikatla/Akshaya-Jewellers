@@ -74,14 +74,14 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
       if (modalState.type === 'CLAIM') {
         const res = await claimCoupon(coupon.id);
         if (res.success) {
-          showToast('✓ Coupon redeemed successfully!', 'success');
+          showToast(res.message || '✓ Coupon redeemed successfully!', 'success');
         } else {
           showToast(res.error || 'Failed to redeem coupon', 'error');
         }
       } else if (modalState.type === 'CANCEL') {
         const res = await cancelCoupon(coupon.id);
         if (res.success) {
-          showToast('Coupon cancelled', 'success');
+          showToast(res.message || 'Coupon cancelled', 'success');
         } else {
           showToast(res.error || 'Failed to cancel coupon', 'error');
         }
@@ -265,19 +265,23 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
           </button>
         )}
 
-        <button
-          onClick={handleWhatsApp}
-          className="btn btn-whatsapp btn-lg w-full font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
-        >
-          RESEND ON WHATSAPP
-        </button>
+        {status !== 'CLAIMED' && (
+          <>
+            <button
+              onClick={handleWhatsApp}
+              className="btn btn-whatsapp btn-lg w-full font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
+            >
+              RESEND ON WHATSAPP
+            </button>
 
-        <button
-          onClick={handleCopyCode}
-          className="btn btn-ghost w-full py-3 border border-gray-300 rounded-xl text-sm font-semibold"
-        >
-          COPY CODE
-        </button>
+            <button
+              onClick={handleCopyCode}
+              className="btn btn-ghost w-full py-3 border border-gray-300 rounded-xl text-sm font-semibold"
+            >
+              COPY CODE
+            </button>
+          </>
+        )}
 
         {/* Visually Separated Cancel Action */}
         {(status === 'ACTIVE' || status === 'NOT_ACTIVE') && (

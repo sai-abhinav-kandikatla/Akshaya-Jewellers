@@ -3,7 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiResponse, Coupon, CouponWithDisplayStatus, CreateCouponInput, CouponFilters } from '@/lib/types';
 import { generateCouponCode } from '@/lib/utils/couponCode';
-import { computeDisplayStatus } from '@/lib/utils/statusCompute';
+import { computeDisplayStatus, getISTDateString } from '@/lib/utils/statusCompute';
 import { isUuid } from '@/lib/utils/identifiers';
 import { isValidIndianMobile, normalizePhone } from '@/lib/utils/validators';
 import { logAuditEvent } from './audit';
@@ -144,8 +144,7 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
 export async function getCoupons(filters: CouponFilters): Promise<{ coupons: CouponWithDisplayStatus[], total: number }> {
   try {
     const supabase = createAdminClient();
-    const now = new Date();
-    const istStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const istStr = getISTDateString();
 
     let query = supabase.from('coupons').select('*', { count: 'exact' });
 
@@ -189,7 +188,7 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
       } else if (filters.status === 'NOT_ACTIVE') {
         query = query.eq('status', 'ACTIVE').gt('valid_from', istStr);
       } else if (filters.status === 'EXPIRED') {
-        query = query.eq('status', 'ACTIVE').lt('valid_until', istStr);
+        query = query.or(`status.eq.EXPIRED,and(status.eq.ACTIVE,valid_until.lt.${istStr})`);
       }
     }
 
@@ -258,6 +257,34 @@ export async function getCouponByCode(code: string): Promise<CouponWithDisplaySt
   }
 }
 
+async function syncChangedCouponStatus(couponId: string, status: 'CLAIMED' | 'CANCELLED') {
+  try {
+    const supabase = createAdminClient();
+    const { data: coupon, error } = await supabase
+      .from('coupons')
+      .update({ excel_sync_status: 'PENDING', excel_synced_at: null })
+      .eq('id', couponId)
+      .eq('status', status)
+      .select('*')
+      .maybeSingle();
+
+    if (error || !coupon) {
+      console.error('Failed to load changed coupon for Excel sync:', error);
+      return 'Excel update is pending. Use Sync Now in Settings to retry.';
+    }
+
+    const result = await syncCouponToExcel(coupon);
+    return result.success ? null : 'Excel update is pending. Use Sync Now in Settings to retry.';
+  } catch (error) {
+    console.error('Failed to sync changed coupon status to Excel:', error);
+    return 'Excel update is pending. Use Sync Now in Settings to retry.';
+  }
+}
+
+function mutationFallbackUnavailable(error: { code?: string; message?: string }) {
+  return error.code !== 'PGRST202' && error.code !== '42883';
+}
+
 export async function claimCoupon(identifier: string): Promise<ApiResponse> {
   try {
     const supabase = createAdminClient();
@@ -299,24 +326,44 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
     }
 
     // Try RPC claim_coupon first
-    const { error: rpcError } = await supabase.rpc('claim_coupon', { p_coupon_code: coupon.coupon_code });
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('claim_coupon', { p_coupon_code: coupon.coupon_code });
     if (!rpcError) {
-      return { success: true, message: 'Coupon redeemed successfully.' };
+      if (rpcResult?.success === false) {
+        return { success: false, error: rpcResult.message || 'This coupon could not be redeemed.' };
+      }
+      const syncWarning = await syncChangedCouponStatus(coupon.id, 'CLAIMED');
+      return {
+        success: true,
+        message: syncWarning ? `Coupon redeemed successfully. ${syncWarning}` : 'Coupon redeemed successfully and Excel was updated.',
+      };
+    }
+
+    if (mutationFallbackUnavailable(rpcError)) {
+      console.error('claimCoupon RPC error:', rpcError);
+      return { success: false, error: 'Could not redeem this coupon. Please try again.' };
     }
 
     // Direct table update fallback
+    const today = getISTDateString();
     const { data: updated, error: updateError } = await supabase
       .from('coupons')
-      .update({ status: 'CLAIMED', claimed_at: new Date().toISOString() })
+      .update({ status: 'CLAIMED', claimed_at: new Date().toISOString(), excel_sync_status: 'PENDING', excel_synced_at: null })
       .eq('id', coupon.id)
-      .select()
-      .single();
+      .eq('status', 'ACTIVE')
+      .lte('valid_from', today)
+      .gte('valid_until', today)
+      .select('*')
+      .maybeSingle();
 
     if (updateError || !updated) {
-      return { success: false, error: updateError?.message || rpcError?.message || 'Failed to claim coupon.' };
+      return { success: false, error: updateError?.message || 'This coupon is no longer active and cannot be redeemed.' };
     }
 
-    return { success: true, message: 'Coupon redeemed successfully.' };
+    const syncResult = await syncCouponToExcel(updated);
+    return {
+      success: true,
+      message: syncResult.success ? 'Coupon redeemed successfully and Excel was updated.' : 'Coupon redeemed successfully. Excel update is pending; use Sync Now in Settings to retry.',
+    };
   } catch (error: any) {
     console.error('claimCoupon exception:', error);
     return { success: false, error: error?.message || 'An unexpected error occurred while claiming the coupon.' };
@@ -347,23 +394,46 @@ export async function cancelCoupon(identifier: string, reason?: string): Promise
       return { success: false, error: 'Cannot cancel a claimed/redeemed coupon.' };
     }
 
-    const { error: rpcError } = await supabase.rpc('cancel_coupon', { p_coupon_code: coupon.coupon_code, p_reason: reason });
-    if (!rpcError) {
-      return { success: true, message: 'Coupon cancelled successfully.' };
+    if (computeDisplayStatus(coupon.status, coupon.valid_from, coupon.valid_until) === 'EXPIRED') {
+      return { success: false, error: 'This coupon has expired and cannot be cancelled.' };
     }
 
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('cancel_coupon', { p_coupon_code: coupon.coupon_code, p_reason: reason });
+    if (!rpcError) {
+      if (rpcResult?.success === false) {
+        return { success: false, error: rpcResult.message || 'This coupon could not be cancelled.' };
+      }
+      const syncWarning = await syncChangedCouponStatus(coupon.id, 'CANCELLED');
+      return {
+        success: true,
+        message: syncWarning ? `Coupon cancelled. ${syncWarning}` : 'Coupon cancelled and Excel was updated.',
+      };
+    }
+
+    if (mutationFallbackUnavailable(rpcError)) {
+      console.error('cancelCoupon RPC error:', rpcError);
+      return { success: false, error: 'Could not cancel this coupon. Please try again.' };
+    }
+
+    const today = getISTDateString();
     const { data: updated, error: updateError } = await supabase
       .from('coupons')
-      .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString() })
+      .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString(), excel_sync_status: 'PENDING', excel_synced_at: null })
       .eq('id', coupon.id)
-      .select()
-      .single();
+      .eq('status', 'ACTIVE')
+      .gte('valid_until', today)
+      .select('*')
+      .maybeSingle();
 
     if (updateError || !updated) {
       return { success: false, error: updateError?.message || rpcError?.message || 'Failed to cancel coupon.' };
     }
 
-    return { success: true, message: 'Coupon cancelled successfully.' };
+    const syncResult = await syncCouponToExcel(updated);
+    return {
+      success: true,
+      message: syncResult.success ? 'Coupon cancelled and Excel was updated.' : 'Coupon cancelled. Excel update is pending; use Sync Now in Settings to retry.',
+    };
   } catch (error: any) {
     console.error('cancelCoupon exception:', error);
     return { success: false, error: error?.message || 'An unexpected error occurred while cancelling the coupon.' };

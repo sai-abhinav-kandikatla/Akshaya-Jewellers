@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS public.coupons (
     campaign_id UUID REFERENCES public.campaigns(id) ON DELETE SET NULL,
     valid_from DATE NOT NULL,
     valid_until DATE NOT NULL,
-    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'CLAIMED', 'CANCELLED')),
+    status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'CLAIMED', 'CANCELLED', 'EXPIRED')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     claimed_at TIMESTAMPTZ,
     claimed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -56,6 +56,19 @@ CREATE TABLE IF NOT EXISTS public.coupons (
 ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS whatsapp_status TEXT DEFAULT 'PREPARED';
 ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS excel_sync_status TEXT NOT NULL DEFAULT 'PENDING';
 ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS excel_synced_at TIMESTAMPTZ;
+
+ALTER TABLE public.coupons DROP CONSTRAINT IF EXISTS coupons_status_check;
+ALTER TABLE public.coupons
+    ADD CONSTRAINT coupons_status_check CHECK (status IN ('ACTIVE', 'CLAIMED', 'CANCELLED', 'EXPIRED'));
+
+UPDATE public.coupons
+SET status = 'EXPIRED', excel_sync_status = 'PENDING', excel_synced_at = NULL
+WHERE status = 'ACTIVE'
+  AND valid_until < (NOW() AT TIME ZONE 'Asia/Kolkata')::DATE;
+
+UPDATE public.coupons
+SET excel_sync_status = 'PENDING', excel_synced_at = NULL
+WHERE status IN ('CLAIMED', 'CANCELLED', 'EXPIRED');
 
 -- Performance indexes
 CREATE INDEX IF NOT EXISTS idx_coupons_coupon_code ON public.coupons(coupon_code);
@@ -467,8 +480,7 @@ BEGIN
     SELECT COUNT(*), COALESCE(SUM(coupon_value), 0)
     INTO v_expired_count, v_expired_value
     FROM public.coupons
-    WHERE status = 'ACTIVE'
-      AND v_today > valid_until
+    WHERE (status = 'EXPIRED' OR (status = 'ACTIVE' AND v_today > valid_until))
       AND (p_campaign_id IS NULL OR campaign_id = p_campaign_id);
 
     -- Cancelled

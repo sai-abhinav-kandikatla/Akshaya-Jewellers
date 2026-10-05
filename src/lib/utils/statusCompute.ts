@@ -4,15 +4,27 @@
 
 import type { CouponStatus } from '@/lib/types';
 
+export function getISTDateString(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((item) => item.type === type)?.value || '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 /**
  * Compute the display status for a coupon.
- * CLAIMED and CANCELLED are terminal — they never change.
+ * CLAIMED, CANCELLED, and EXPIRED are terminal — they never change.
  * Otherwise, status is computed from current IST date vs validity dates.
  */
 export function computeDisplayStatus(
   storedStatusOrCoupon: string | { status: string; valid_from: string; valid_until: string },
   validFromStr?: string,
-  validUntilStr?: string
+  validUntilStr?: string,
+  now = new Date()
 ): CouponStatus {
   let storedStatus: string;
   let validFrom: string;
@@ -31,13 +43,12 @@ export function computeDisplayStatus(
   // Terminal states: always return as-is
   if (storedStatus === 'CLAIMED') return 'CLAIMED';
   if (storedStatus === 'CANCELLED') return 'CANCELLED';
+  if (storedStatus === 'EXPIRED') return 'EXPIRED';
 
-  // Compute current IST date
-  const now = new Date();
-  const istDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD format
-  const today = new Date(istDateStr + 'T00:00:00');
-  const from = new Date((validFrom ? validFrom.split('T')[0] : '') + 'T00:00:00');
-  const until = new Date((validUntil ? validUntil.split('T')[0] : '') + 'T00:00:00');
+  // Compare ISO dates in IST. A coupon remains valid for the whole valid_until date.
+  const today = getISTDateString(now);
+  const from = validFrom ? validFrom.split('T')[0] : '';
+  const until = validUntil ? validUntil.split('T')[0] : '';
 
   if (today < from) return 'NOT_ACTIVE';
   if (today > until) return 'EXPIRED';
