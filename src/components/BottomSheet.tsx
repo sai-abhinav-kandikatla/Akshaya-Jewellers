@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useId } from 'react';
 
 interface BottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  icon?: React.ReactNode;
   title: string;
   description: string;
   details?: {
@@ -14,6 +13,7 @@ interface BottomSheetProps {
     value?: string | number;
     date?: string;
   };
+  children?: React.ReactNode;
   primaryButtonText: string;
   primaryButtonAction: () => void;
   secondaryButtonText?: string;
@@ -24,118 +24,79 @@ interface BottomSheetProps {
 export default function BottomSheet({
   isOpen,
   onClose,
-  icon,
   title,
   description,
   details,
+  children,
   primaryButtonText,
   primaryButtonAction,
-  secondaryButtonText = 'Cancel',
+  secondaryButtonText,
   secondaryButtonAction,
   isLoading = false,
 }: BottomSheetProps) {
+  const titleId = useId();
+
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isLoading) onClose();
     };
-  }, [isOpen]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isOpen, isLoading, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
-      {/* Dimmed backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
-        onClick={isLoading ? undefined : onClose}
-        aria-hidden="true"
-      />
+    <div className="bottom-sheet-overlay" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !isLoading) onClose();
+    }}>
+      <section className="bottom-sheet-panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <div className="bottom-sheet-handle" aria-hidden="true" />
+        <h2 id={titleId}>{title}</h2>
+        <p className="bottom-sheet-description">{description}</p>
 
-      {/* Slide-up sheet */}
-      <div
-        className="relative w-full max-w-[430px] bg-white rounded-t-[24px] px-5 pt-3 pb-8 shadow-2xl z-10 animate-in slide-in-from-bottom duration-200 border-t border-[#E7E0CF]"
-        role="dialog"
-        aria-modal="true"
-      >
-        {/* Top drag handle */}
-        <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
-
-        {/* Circular icon container */}
-        {icon && (
-          <div className="w-14 h-14 rounded-full bg-[#F6E8B1] flex items-center justify-center mx-auto mb-3 text-[#A67C00]">
-            {icon}
-          </div>
-        )}
-
-        {/* Title */}
-        <h3 className="text-lg font-bold text-[#111111] text-center">
-          {title}
-        </h3>
-
-        {/* Description */}
-        <p className="text-xs text-[#666666] text-center mt-1.5 max-w-xs mx-auto leading-relaxed">
-          {description}
-        </p>
-
-        {/* Inner Coupon Details Card (Matches Mockup) */}
         {details && (
-          <div className="mt-4 p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E7E0CF] flex items-center justify-between">
-            <div className="min-w-0 pr-2">
-              <p className="font-mono font-bold text-sm text-[#111111] truncate">
-                {details.code}
-              </p>
-              {details.customerName && (
-                <p className="text-xs text-[#666666] truncate mt-0.5">
-                  {details.customerName}
-                </p>
-              )}
+          <div className="bottom-sheet-details">
+            <div className="bottom-sheet-details-main">
+              {details.code && <span className="bottom-sheet-details-code">{details.code}</span>}
+              {details.customerName && <span className="bottom-sheet-details-customer">{details.customerName}</span>}
             </div>
-            <div className="text-right flex-shrink-0">
-              <p className="font-bold text-base text-[#111111]">
-                {details.value}
-              </p>
-              {details.date && (
-                <p className="text-[11px] text-[#666666] mt-0.5">
-                  {details.date}
-                </p>
-              )}
+            <div className="bottom-sheet-details-value">
+              {details.value !== undefined && <span className="bottom-sheet-details-amount">{details.value}</span>}
+              {details.date && <span className="bottom-sheet-details-date">{details.date}</span>}
             </div>
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={secondaryButtonAction || onClose}
-            disabled={isLoading}
-            className="h-12 rounded-xl bg-white border border-[#E7E0CF] text-[#111111] font-semibold text-sm hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
-          >
-            {secondaryButtonText}
-          </button>
+        {children && <div className="bottom-sheet-content">{children}</div>}
 
+        <div className="bottom-sheet-actions">
+          {secondaryButtonText && (
+            <button
+              type="button"
+              className="bottom-sheet-secondary"
+              onClick={secondaryButtonAction || onClose}
+              disabled={isLoading}
+            >
+              {secondaryButtonText}
+            </button>
+          )}
           <button
             type="button"
+            className="bottom-sheet-primary"
             onClick={primaryButtonAction}
             disabled={isLoading}
-            className="h-12 rounded-xl bg-gradient-to-r from-[#C9A227] to-[#A67C00] text-white font-bold text-sm shadow-sm hover:brightness-105 active:brightness-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {isLoading ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Processing...</span>
-              </>
-            ) : (
-              primaryButtonText
-            )}
+            {isLoading ? 'Processing…' : primaryButtonText}
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

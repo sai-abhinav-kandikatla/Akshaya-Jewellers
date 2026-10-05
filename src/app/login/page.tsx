@@ -37,10 +37,10 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="flex justify-center mb-3">
-          <img src="/logo.png" alt="Akshaya Jewellers Logo" className="w-16 h-16 rounded-full object-cover border-2 border-[#D4AF37] shadow-md" />
+          <img src="/logo.png" alt="Akshaya Jewellers Logo" className="w-14 h-14 rounded-full object-cover border border-[#C6A15B]" />
         </div>
         <h1 className="login-title text-center mb-1">Akshaya Jewellers</h1>
-        <p className="text-muted text-center mb-6">Admin Gift Coupon Management System</p>
+        <p className="text-muted text-center mb-6">Digital Gift Coupon</p>
 
         <form onSubmit={handleLogin}>
           <div className="form-group">
@@ -71,7 +71,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="form-error mb-4 p-3 text-center rounded bg-red-50 text-red-600 border border-red-200 text-sm">
+            <div className="form-error mb-4 p-3 text-center rounded bg-white text-[#111111] border border-[#E8E2D5] text-sm">
               {error}
             </div>
           )}
@@ -82,12 +82,12 @@ export default function LoginPage() {
             style={{ width: '100%' }}
             disabled={loading}
           >
-            {loading ? 'Authenticating...' : 'SIGN IN'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <div className="text-center mt-6 text-xs text-gray-500 border-t border-gray-100 pt-4">
-          🔒 Restricted Access • Akshaya Jewellers Staff Only
+        <div className="text-center mt-6 text-xs text-gray-500 border-t border-[#E8E2D5] pt-4">
+          Akshaya Jewellers staff access
         </div>
       </div>
     </div>

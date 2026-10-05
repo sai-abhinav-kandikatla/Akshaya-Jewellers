@@ -11,7 +11,7 @@ interface CouponQRCodeProps {
 
 export default function CouponQRCode({ value, size = 180, label }: CouponQRCodeProps) {
   return (
-    <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border-2 border-[#D4AF37]/40 shadow-sm space-y-2">
+    <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-[#C6A15B] space-y-2">
       <div className="p-2 bg-white rounded-xl">
         <QRCodeSVG
           value={value}
