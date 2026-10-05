@@ -96,32 +96,44 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
         </div>
       </div>
 
-      {/* Recent Coupons List */}
-      <div className="card bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
-          <h2 className="text-base font-bold text-gray-900">Recent Coupons</h2>
-          <Link href="/dashboard/coupons" className="text-xs font-semibold text-[#b8860b] hover:underline">
-            View All →
+      {/* Recent Coupons List (Latest 5) */}
+      <div className="card bg-white rounded-2xl shadow-xs border border-gray-200 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-gray-100 flex justify-between items-center bg-[#FAF8F5]">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-serif font-bold text-[#3E2723] uppercase tracking-wider">Recent Coupons</h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gold-100 text-[#8b6508] border border-[#D4AF37]/30">
+              Latest 5
+            </span>
+          </div>
+          <Link href="/dashboard/coupons" className="text-xs font-bold text-[#8b6508] hover:text-[#5a4103] flex items-center gap-1 transition-colors">
+            <span>View All</span>
+            <span aria-hidden="true">&rarr;</span>
           </Link>
         </div>
 
-        <div className="p-4 space-y-2">
-          {recentCoupons?.length > 0 ? (
-            recentCoupons.map((coupon: any) => {
+        <div className="divide-y divide-gray-100">
+          {(recentCoupons || []).slice(0, 5).length > 0 ? (
+            (recentCoupons || []).slice(0, 5).map((coupon: any) => {
               const status = computeDisplayStatus(coupon);
               return (
                 <Link
                   key={coupon.id}
                   href={`/dashboard/coupons/${coupon.coupon_code}`}
-                  className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100"
+                  className="flex items-center justify-between px-5 py-3.5 hover:bg-gold-50/40 transition-colors group"
                 >
-                  <div>
-                    <span className="font-bold text-[#b8860b] text-sm block">{coupon.coupon_code}</span>
-                    <span className="text-xs font-medium text-gray-800">{coupon.customer_name || 'Valued Customer'}</span>
+                  <div className="min-w-0 pr-3">
+                    <span className="font-mono font-bold text-sm text-[#3E2723] group-hover:text-[#b8860b] transition-colors block">
+                      {coupon.coupon_code}
+                    </span>
+                    <p className="text-xs text-gray-600 font-medium truncate mt-0.5">
+                      {coupon.customer_name || 'Valued Customer'}
+                    </p>
                   </div>
-                  <div className="text-right">
-                    <span className="font-bold text-gray-900 text-sm block">{formatCurrency(coupon.value)}</span>
-                    <span className={`badge badge-${status.toLowerCase().replace('_', '-')} text-[10px] py-0.5 px-2`}>
+                  <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                    <span className="font-bold text-sm text-gray-900 tracking-tight block">
+                      {formatCurrency(coupon.value)}
+                    </span>
+                    <span className={`badge badge-${status.toLowerCase().replace('_', '-')} text-[10px] px-2 py-0.5 font-semibold`}>
                       {getStatusLabel(status)}
                     </span>
                   </div>
@@ -129,7 +141,9 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
               );
             })
           ) : (
-            <p className="text-xs text-gray-500 text-center py-4">No coupons created yet.</p>
+            <div className="p-8 text-center text-xs text-gray-500">
+              No coupons created yet.
+            </div>
           )}
         </div>
       </div>

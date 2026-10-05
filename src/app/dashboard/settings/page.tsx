@@ -2,27 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { adminLogoutAction } from '@/app/actions/auth';
 import { isWhatsAppConfigured } from '@/app/actions/whatsapp';
 import { getDatabaseConnectionStatus } from '@/app/actions/dashboard';
 
 export default function SettingsPage() {
-  const [userEmail, setUserEmail] = useState('');
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
   const [whatsappConfigured, setWhatsappConfigured] = useState<boolean | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
   useEffect(() => {
     async function loadData() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email || '');
-      }
       try {
         const [isDbOk, isWaOk] = await Promise.all([
           getDatabaseConnectionStatus().catch(() => true),
@@ -36,140 +27,43 @@ export default function SettingsPage() {
       }
     }
     loadData();
-  }, [supabase]);
-
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage({ type: '', text: '' });
-
-    if (newPassword !== confirmPassword) {
-      setMessage({ type: 'error', text: 'Passwords do not match' });
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'Password must be at least 6 characters' });
-      return;
-    }
-
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-    if (error) {
-      setMessage({ type: 'error', text: error.message });
-    } else {
-      setMessage({ type: 'success', text: 'Password updated successfully' });
-      setIsChangingPassword(false);
-      setNewPassword('');
-      setConfirmPassword('');
-    }
-  };
+  }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
+    setIsLoggingOut(true);
+    try {
+      await adminLogoutAction();
+    } catch {
+      // Ignore logout errors
+    } finally {
+      router.push('/login');
+      router.refresh();
+    }
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto">
-      <div className="page-header mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Settings</h1>
+    <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
+      <div className="page-header mb-6">
+        <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#3E2723]">Settings</h1>
+        <p className="text-xs text-gray-500 mt-1">System status & session control</p>
       </div>
 
       <div className="space-y-6">
-        {/* Account Section */}
-        <div className="card bg-white rounded-lg shadow overflow-hidden">
-          <div className="card-header px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-lg font-medium text-gray-900">Account Profile</h2>
-          </div>
-          <div className="card-body p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">Email Address</p>
-                <p className="text-base font-medium text-gray-900">{userEmail || 'Loading...'}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Security Section */}
-        <div className="card bg-white rounded-lg shadow overflow-hidden">
-          <div className="card-header px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-lg font-medium text-gray-900">Security</h2>
-          </div>
-          <div className="card-body p-6">
-            {message.text && (
-              <div className={`mb-4 p-4 rounded-md ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                {message.text}
-              </div>
-            )}
-
-            {!isChangingPassword ? (
-              <div>
-                <p className="text-sm text-gray-500 mb-4">Ensure your account is using a long, random password to stay secure.</p>
-                <button 
-                  onClick={() => setIsChangingPassword(true)}
-                  className="btn btn-secondary px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Change Password
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleUpdatePassword} className="max-w-md space-y-4">
-                <div className="form-group">
-                  <label className="form-label block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                  <input 
-                    type="password" 
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="form-input w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                  <input 
-                    type="password" 
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="form-input w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37]"
-                    required
-                  />
-                </div>
-                <div className="flex space-x-3 pt-2">
-                  <button 
-                    type="submit"
-                    className="btn btn-primary px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#3E2723] hover:bg-[#2D1C19]"
-                  >
-                    Save Password
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => { setIsChangingPassword(false); setMessage({type:'', text:''}); }}
-                    className="btn btn-ghost px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-
         {/* System Connections Section */}
-        <div className="card bg-white rounded-lg shadow overflow-hidden">
-          <div className="card-header px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-            <h2 className="text-lg font-medium text-gray-900">System Connections</h2>
-            <span className="text-xs bg-gold-100 text-[#b8860b] px-2.5 py-1 rounded-full font-semibold border border-[#d4af37]">
+        <div className="card bg-white rounded-2xl shadow-xs border border-gray-200 overflow-hidden">
+          <div className="card-header px-6 py-4 border-b border-gray-100 bg-[#FAF8F5] flex justify-between items-center">
+            <h2 className="text-sm font-serif font-bold text-[#3E2723] uppercase tracking-wider">System Connections</h2>
+            <span className="text-xs bg-gold-100 text-[#8b6508] px-2.5 py-0.5 rounded-full font-semibold border border-[#d4af37]/40">
               Asia/Kolkata (IST)
             </span>
           </div>
-          <div className="card-body p-6 space-y-4">
-            <div className="settings-connection-row flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="card-body p-5 space-y-3">
+            <div className="settings-connection-row flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex items-center gap-3">
-                <span className="text-xl">🟢</span>
+                <span className="text-lg">🟢</span>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Database Connection</p>
-                  <p className="settings-connection-detail text-xs text-gray-500">Supabase PostgreSQL — Single Source of Truth</p>
+                  <p className="text-xs text-gray-500">Supabase PostgreSQL — Single Source of Truth</p>
                 </div>
               </div>
               <span className="text-xs text-green-700 font-bold bg-green-100 px-2.5 py-1 rounded-full">
@@ -177,13 +71,17 @@ export default function SettingsPage() {
               </span>
             </div>
 
-            <div className="settings-connection-row flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="settings-connection-row flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-gray-100">
               <div className="flex items-center gap-3">
-                <span className="text-xl">{whatsappConfigured ? '🟢' : '🟡'}</span>
+                <span className="text-lg">{whatsappConfigured ? '🟢' : '🟡'}</span>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">WhatsApp Business Service</p>
-                  <p className="settings-connection-detail text-xs text-gray-500">
-                    {whatsappConfigured === null ? 'Checking configuration…' : whatsappConfigured ? 'Cloud API messaging enabled' : 'Cloud API not configured; direct WhatsApp sharing links active'}
+                  <p className="text-xs text-gray-500">
+                    {whatsappConfigured === null
+                      ? 'Checking configuration…'
+                      : whatsappConfigured
+                        ? 'Cloud API messaging enabled'
+                        : 'Direct WhatsApp sharing links active'}
                   </p>
                 </div>
               </div>
@@ -194,34 +92,25 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* About Section */}
-        <div className="card bg-white rounded-lg shadow overflow-hidden">
-          <div className="card-header px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-lg font-medium text-gray-900">About</h2>
+        {/* Account Session / Logout */}
+        <div className="card bg-white rounded-2xl shadow-xs border border-red-100 overflow-hidden">
+          <div className="card-header px-6 py-4 border-b border-red-50 bg-red-50/50 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-red-900 uppercase tracking-wider">Account Session</h2>
           </div>
-          <div className="card-body p-6 flex items-center space-x-4">
+          <div className="card-body p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="font-semibold text-gray-900">Akshaya Jewellers Digital Gift Coupon System</p>
-              <p className="text-sm text-gray-500">Version 1.0.0</p>
+              <p className="text-sm font-bold text-gray-900">Sign Out of Admin Console</p>
+              <p className="text-xs text-gray-500 mt-0.5">End your current session and return to the login screen.</p>
             </div>
-          </div>
-        </div>
-
-        {/* Danger Zone */}
-        <div className="card bg-white rounded-lg shadow overflow-hidden border border-red-100">
-          <div className="card-header px-6 py-4 border-b border-red-100 bg-red-50">
-            <h2 className="text-lg font-medium text-red-800">Danger Zone</h2>
-          </div>
-          <div className="card-body p-6 flex flex-col sm:flex-row sm:items-center justify-between">
-            <div>
-              <p className="text-base font-medium text-gray-900">Log out of your account</p>
-              <p className="text-sm text-gray-500">You will need to log back in to access the dashboard.</p>
-            </div>
-            <button 
+            <button
               onClick={handleLogout}
-              className="mt-4 sm:mt-0 btn btn-danger px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              disabled={isLoggingOut}
+              className="btn btn-danger px-6 py-2.5 rounded-xl font-bold text-sm bg-red-600 hover:bg-red-700 text-white shadow-xs transition-all flex items-center justify-center gap-2"
             >
-              Logout
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>{isLoggingOut ? 'Signing out...' : 'Log Out'}</span>
             </button>
           </div>
         </div>

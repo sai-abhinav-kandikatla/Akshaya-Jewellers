@@ -70,7 +70,7 @@ export async function getDashboardStats(campaignId?: string): Promise<DashboardS
   }
 }
 
-export async function getRecentCoupons(limit: number = 10): Promise<CouponWithDisplayStatus[]> {
+export async function getRecentCoupons(limit: number = 5): Promise<CouponWithDisplayStatus[]> {
   if (!(await isAdminAuthenticated())) return [];
   try {
     const supabase = createAdminClient();
