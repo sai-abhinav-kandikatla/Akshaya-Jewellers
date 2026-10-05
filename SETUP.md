@@ -36,12 +36,15 @@ For an existing deployment, run `supabase/automatic_coupon_expiry.sql` and `supa
 1. In your Supabase Dashboard, go to **Settings → API**
 2. Copy:
    - **Project URL** (e.g., `https://xxxxx.supabase.co`)
-   - **Anon/Public Key** (the `anon` key, NOT the `service_role` key)
+   - **Publishable/Anon Key** for browser requests
+   - **Secret Key** for server-side admin access (legacy `service_role` keys are also supported)
 3. In this project folder, create a file `.env.local`:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_SECRET_KEY=your-server-only-supabase-secret-key
 ADMIN_USERNAME=Akshaya_Jewellers
 ADMIN_PASSWORD=replace_with_a_strong_password
 ADMIN_SESSION_SECRET=replace_with_a_random_secret
@@ -52,7 +55,7 @@ WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
 ```
 
 > ⚠️ Never commit `.env.local` to version control!
-> Keep admin credentials and the session secret server-only. Do not add the `NEXT_PUBLIC_` prefix to them.
+> Keep `SUPABASE_SECRET_KEY`, admin credentials, and the session secret server-only. Never add the `NEXT_PUBLIC_` prefix to them. A legacy `SUPABASE_SERVICE_ROLE_KEY` can be used instead of `SUPABASE_SECRET_KEY`.
 > Supabase PostgreSQL is the sole source of truth. You can export coupons to CSV directly from the Coupons dashboard anytime.
 
 ---
@@ -99,6 +102,8 @@ After creating your admin account, to prevent others from signing up:
 1. Push your code to GitHub
 2. Go to [vercel.com](https://vercel.com) and import your repository
 3. Add the environment variables:
+   - `SUPABASE_URL`
+   - `SUPABASE_SECRET_KEY` (or legacy `SUPABASE_SERVICE_ROLE_KEY`)
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `ADMIN_USERNAME`
