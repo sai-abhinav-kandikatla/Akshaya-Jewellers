@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { getCouponByCode } from '@/app/actions/coupons';
 import { logAuditEvent } from '@/app/actions/audit';
 import { formatCurrency, formatIndianDate } from '@/lib/utils/formatters';
-import { generateWhatsAppURL } from '@/lib/utils/whatsapp';
+import { createCouponQrImageFile, shareCouponQrFileWithText } from '@/lib/utils/whatsapp';
 import type { Coupon } from '@/lib/types';
 import BottomSheet from '@/components/BottomSheet';
 
@@ -15,6 +15,10 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirmWhatsApp, setConfirmWhatsApp] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [toast, setToast] = useState('');
+  const [qrImageFile, setQrImageFile] = useState<File | null>(null);
+  const qrRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -33,28 +37,59 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
     return () => { active = false; };
   }, [params]);
 
+  useEffect(() => {
+    if (!coupon) return;
+    setQrImageFile(null);
+    const svg = qrRef.current?.querySelector('svg');
+    if (!svg) return;
+    let active = true;
+    void createCouponQrImageFile(svg, coupon.coupon_code)
+      .then(file => { if (active) setQrImageFile(file); })
+      .catch(() => { if (active) setQrImageFile(null); });
+    return () => { active = false; };
+  }, [coupon?.coupon_code]);
+
   if (isLoading) return <p className="page-state">Loading coupon…</p>;
   if (!coupon) return <div className="page-state"><p>{error || 'Coupon not found.'}</p><Link href="/dashboard">Back to Home</Link></div>;
 
   const verificationUrl = typeof window === 'undefined' ? coupon.coupon_code : `${window.location.origin}/verify/${coupon.coupon_code}`;
-  const openWhatsApp = () => {
-    window.open(generateWhatsAppURL(coupon), '_blank', 'noopener,noreferrer');
-    void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
-    setConfirmWhatsApp(false);
+  const notify = (message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(''), 3500);
+  };
+
+  const sendWhatsApp = async () => {
+    setIsSendingWhatsApp(true);
+    try {
+      if (!qrImageFile) throw new Error('The coupon QR image is still preparing. Try again in a moment.');
+      const shareResult = await shareCouponQrFileWithText(qrImageFile, coupon);
+      if (shareResult === 'cancelled') return;
+      void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
+      notify(shareResult === 'shared'
+        ? 'QR image and coupon text shared. Choose WhatsApp and the customer to send.'
+        : 'QR image downloaded. Attach it in WhatsApp before sending the coupon text.');
+    } catch (shareError) {
+      notify(shareError instanceof Error ? shareError.message : 'Could not prepare the coupon QR image and text.');
+    } finally {
+      setIsSendingWhatsApp(false);
+      setConfirmWhatsApp(false);
+    }
   };
 
   return (
     <div className="coupon-success-page">
+      {toast && <div className="app-toast" role="status">{toast}</div>}
       <BottomSheet
         isOpen={confirmWhatsApp}
         onClose={() => setConfirmWhatsApp(false)}
         title="Resend WhatsApp"
-        description={`Open WhatsApp to send this coupon to +91 ${coupon.phone_number}?`}
+        description={`Send this coupon's QR image and text to +91 ${coupon.phone_number}?`}
         details={{ code: coupon.coupon_code, customerName: coupon.customer_name, value: formatCurrency(coupon.coupon_value ?? coupon.value ?? 0) }}
-        primaryButtonText="Open WhatsApp"
-        primaryButtonAction={openWhatsApp}
+        primaryButtonText="Send Coupon"
+        primaryButtonAction={sendWhatsApp}
         secondaryButtonText="Cancel"
         secondaryButtonAction={() => setConfirmWhatsApp(false)}
+        isLoading={isSendingWhatsApp}
       />
 
       <div className="coupon-success-intro">
@@ -71,7 +106,7 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
           <div><dt>Valid From</dt><dd>{formatIndianDate(coupon.valid_from)}</dd></div>
           <div><dt>Valid Until</dt><dd>{formatIndianDate(coupon.valid_until)}</dd></div>
         </dl>
-        <div className="coupon-success-qr"><QRCodeSVG value={verificationUrl} size={152} level="M" /></div>
+        <div ref={qrRef} className="coupon-success-qr"><QRCodeSVG value={verificationUrl} size={152} level="M" /></div>
         <p className="coupon-success-hint">Scan to verify coupon</p>
       </section>
 

@@ -50,7 +50,7 @@ export async function sendWhatsAppCloudAPI(coupon: Coupon): Promise<ApiResponse>
 
     if (token && phoneId) {
       // Official WhatsApp Business Cloud API Endpoint — Send QR image with message caption
-      let apiRes = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+      const apiRes = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -68,24 +68,6 @@ export async function sendWhatsAppCloudAPI(coupon: Coupon): Promise<ApiResponse>
         signal: AbortSignal.timeout(10000),
       });
 
-      // Fallback to text message if image type is not accepted by phone number
-      if (!apiRes.ok) {
-        apiRes = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: rawPhone,
-            type: 'text',
-            text: { body: messageText },
-          }),
-          signal: AbortSignal.timeout(10000),
-        });
-      }
-
       const responseData = await apiRes.json();
 
       if (apiRes.ok && responseData.messages?.[0]?.id) {
@@ -101,7 +83,7 @@ export async function sendWhatsAppCloudAPI(coupon: Coupon): Promise<ApiResponse>
 
         return {
           success: true,
-          message: 'WhatsApp message sent successfully via WhatsApp Cloud API.',
+          message: 'Coupon QR image and text sent successfully via WhatsApp Cloud API.',
           ...(updateError ? { warning: 'The message was sent, but its status could not be saved.' } : {}),
         };
       } else {
@@ -114,7 +96,7 @@ export async function sendWhatsAppCloudAPI(coupon: Coupon): Promise<ApiResponse>
 
         return {
           success: false,
-          error: responseData.error?.message || 'WhatsApp Cloud API failed to deliver message.',
+          error: responseData.error?.message || 'WhatsApp could not send the coupon QR image and text.',
         };
       }
     }

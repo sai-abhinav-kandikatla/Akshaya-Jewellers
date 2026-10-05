@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { getCouponByCode, claimCoupon, cancelCoupon } from '@/app/actions/coupons';
+import { logAuditEvent } from '@/app/actions/audit';
 import { getCampaignById } from '@/app/actions/campaigns';
 import { formatCurrency, formatIndianDate } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
-import { generateWhatsAppURL } from '@/lib/utils/whatsapp';
+import { createCouponQrImageFile, shareCouponQrFileWithText } from '@/lib/utils/whatsapp';
 import BottomSheet from '@/components/BottomSheet';
 import type { Coupon } from '@/lib/types';
 
@@ -21,6 +22,8 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
   const [sheetAction, setSheetAction] = useState<SheetAction>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [toast, setToast] = useState('');
+  const [qrImageFile, setQrImageFile] = useState<File | null>(null);
+  const qrRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -46,6 +49,18 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
     return () => { active = false; };
   }, [params]);
 
+  useEffect(() => {
+    if (!coupon) return;
+    setQrImageFile(null);
+    const svg = qrRef.current?.querySelector('svg');
+    if (!svg) return;
+    let active = true;
+    void createCouponQrImageFile(svg, coupon.coupon_code)
+      .then(file => { if (active) setQrImageFile(file); })
+      .catch(() => { if (active) setQrImageFile(null); });
+    return () => { active = false; };
+  }, [coupon?.coupon_code]);
+
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(''), 2500);
@@ -55,8 +70,21 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
     if (!coupon || !sheetAction) return;
     const action = sheetAction;
     if (action === 'WHATSAPP') {
-      window.open(generateWhatsAppURL(coupon), '_blank', 'noopener,noreferrer');
-      setSheetAction(null);
+      setIsProcessing(true);
+      try {
+        if (!qrImageFile) throw new Error('The coupon QR image is still preparing. Try again in a moment.');
+        const shareResult = await shareCouponQrFileWithText(qrImageFile, coupon);
+        if (shareResult === 'cancelled') return;
+        void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
+        notify(shareResult === 'shared'
+          ? 'QR image and coupon text shared. Choose WhatsApp and the customer to send.'
+          : 'QR image downloaded. Attach it in WhatsApp before sending the coupon text.');
+      } catch (shareError) {
+        notify(shareError instanceof Error ? shareError.message : 'Could not prepare the coupon QR image and text.');
+      } finally {
+        setIsProcessing(false);
+        setSheetAction(null);
+      }
       return;
     }
     setIsProcessing(true);
@@ -94,7 +122,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
   const sheetCopy = {
     CLAIM: ['Claim Coupon', 'Are you sure you want to claim this coupon?', 'Yes, Claim'],
     CANCEL: ['Cancel Coupon', 'Are you sure you want to cancel this coupon?', 'Yes, Cancel'],
-    WHATSAPP: ['Resend WhatsApp', `Open WhatsApp to send this coupon to +91 ${coupon.phone_number}?`, 'Open WhatsApp'],
+    WHATSAPP: ['Resend WhatsApp', `Send this coupon's QR image and text to +91 ${coupon.phone_number}?`, 'Send Coupon'],
   } as const;
   const activeCopy = sheetAction ? sheetCopy[sheetAction] : null;
 
@@ -130,7 +158,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
 
       <section className="coupon-detail-qr" aria-label="Coupon QR code">
         <h2>QR Code</h2>
-        <div className="coupon-qr-code"><QRCodeSVG value={verificationUrl || coupon.coupon_code} size={168} level="M" /></div>
+        <div ref={qrRef} className="coupon-qr-code"><QRCodeSVG value={verificationUrl || coupon.coupon_code} size={168} level="M" /></div>
       </section>
 
       <section className="coupon-detail-actions" aria-label="Coupon actions">
