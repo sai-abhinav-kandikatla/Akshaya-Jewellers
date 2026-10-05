@@ -39,6 +39,7 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
     if (existingCoupon) {
       return {
         success: true,
+        created: false,
         message: 'This mobile number already has a coupon. The existing coupon was opened.',
         data: existingCoupon,
       };
@@ -78,6 +79,7 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
           if (concurrentlyCreatedCoupon) {
             return {
               success: true,
+              created: false,
               message: 'This mobile number already has a coupon. The existing coupon was opened.',
               data: concurrentlyCreatedCoupon,
             };
@@ -134,7 +136,7 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
       console.warn('Non-fatal audit log failure:', auditErr);
     }
 
-    return { success: true, message: 'Coupon created successfully', data: coupon };
+    return { success: true, created: true, message: 'Coupon created successfully', data: coupon };
   } catch (error: any) {
     console.error('createCoupon exception:', error);
     return { success: false, error: error?.message || 'An unexpected error occurred while creating the coupon.' };

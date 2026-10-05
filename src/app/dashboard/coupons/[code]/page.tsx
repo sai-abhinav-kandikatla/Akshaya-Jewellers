@@ -265,13 +265,13 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
           </button>
         )}
 
-        {status !== 'CLAIMED' && (
+        {(status === 'ACTIVE' || status === 'NOT_ACTIVE') && (
           <>
             <button
               onClick={handleWhatsApp}
               className="btn btn-whatsapp btn-lg w-full font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
             >
-              RESEND ON WHATSAPP
+              {coupon.whatsapp_status === 'SENT' ? 'RESEND ON WHATSAPP' : 'SEND TO WHATSAPP'}
             </button>
 
             <button

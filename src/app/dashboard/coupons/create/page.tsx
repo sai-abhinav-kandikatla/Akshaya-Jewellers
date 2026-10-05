@@ -7,7 +7,7 @@ import { createCoupon } from '@/app/actions/coupons';
 import { getCampaigns } from '@/app/actions/campaigns';
 import { validateCouponForm } from '@/lib/utils/validators';
 import { getTodayIST } from '@/lib/utils/formatters';
-import type { Campaign } from '@/lib/types';
+import type { Campaign, Coupon } from '@/lib/types';
 
 export default function CreateCouponPage() {
   const router = useRouter();
@@ -25,6 +25,7 @@ export default function CreateCouponPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [existingCoupon, setExistingCoupon] = useState<Coupon | null>(null);
   const submitLock = useRef(false);
 
   useEffect(() => {
@@ -35,6 +36,8 @@ export default function CreateCouponPage() {
     const { name, value } = e.target;
     const safeValue = name === 'mobileNumber' ? value.replace(/\D/g, '').slice(0, 10) : value;
     setFormData(prev => ({ ...prev, [name]: safeValue }));
+    setExistingCoupon(null);
+    setSubmitError('');
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -71,6 +74,12 @@ export default function CreateCouponPage() {
       
       const res = await createCoupon(payload);
       if (res.success && res.data) {
+        if (res.created === false) {
+          setExistingCoupon(res.data);
+          submitLock.current = false;
+          setIsSubmitting(false);
+          return;
+        }
         router.push(`/dashboard/coupons/${res.data.coupon_code}/success`);
       } else {
         setSubmitError(res.error || res.message || 'Failed to create coupon. Please try again.');
@@ -97,6 +106,19 @@ export default function CreateCouponPage() {
 
       <div className="card bg-white p-5 sm:p-7 rounded-2xl shadow-md border border-gray-200">
         <form onSubmit={handleSubmit} className="space-y-4">
+          {existingCoupon && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" role="status">
+              <p className="font-semibold">This mobile number already has a coupon.</p>
+              <p className="mt-1">No new coupon was created, so a second coupon cannot be generated for this number.</p>
+              <Link
+                href={`/dashboard/coupons/${existingCoupon.coupon_code}`}
+                className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#25d366] px-4 py-2 font-bold text-white"
+              >
+                OPEN {existingCoupon.coupon_code}
+              </Link>
+            </div>
+          )}
+
           {submitError && (
             <div className="p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm font-medium">
               ⚠️ {submitError}

@@ -53,13 +53,12 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
 
   const handleWhatsApp = async () => {
     if (coupon) {
-      await logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, {
-        phone_number: coupon.phone_number
-      });
-      
       const verificationUrl = `${window.location.origin}/verify/${coupon.coupon_code}`;
       const url = generateWhatsAppURL(coupon, verificationUrl);
       window.open(url, '_blank');
+      void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, {
+        phone_number: coupon.phone_number
+      }).catch((auditError) => console.error('WhatsApp audit logging failed:', auditError));
     }
   };
 
@@ -81,6 +80,7 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
     : `https://akshaya-jewellers-mncl.vercel.app/verify/${coupon.coupon_code}`;
 
   const displayStatus = computeDisplayStatus(coupon);
+  const canSendWhatsApp = displayStatus === 'ACTIVE' || displayStatus === 'NOT_ACTIVE';
   const whatsappStatus = coupon.whatsapp_status;
   const excelStatus = coupon.excel_sync_status;
 
@@ -138,6 +138,25 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
         </div>
       </div>
 
+      {canSendWhatsApp && (
+        <section className="rounded-2xl border border-green-200 bg-green-50 p-4" aria-label="Send coupon on WhatsApp">
+          <button
+            onClick={handleWhatsApp}
+            className="btn btn-whatsapp btn-lg w-full font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
+          >
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+            {whatsappStatus === 'SENT' ? 'RESEND ON WHATSAPP' : 'SEND TO WHATSAPP'}
+          </button>
+          <p className="mt-2 text-center text-xs leading-5 text-green-900">
+            {whatsappStatus === 'SENT'
+              ? 'The system has sent this coupon. Tap to open WhatsApp and send it again if needed.'
+              : 'Opens a pre-filled WhatsApp message. Review it and tap Send in WhatsApp.'}
+          </p>
+        </section>
+      )}
+
       {/* Main Coupon Card */}
       <div className="coupon-success-card card bg-white p-5 rounded-2xl shadow-md border border-gray-200 space-y-4">
         <div className="flex justify-between items-start border-b border-gray-100 pb-3">
@@ -182,18 +201,6 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
 
       {/* Primary Actions (Master Prompt Section 16) */}
       <div className="space-y-3">
-        {displayStatus !== 'CLAIMED' && (
-          <button
-            onClick={handleWhatsApp}
-            className="btn btn-whatsapp btn-lg w-full font-bold shadow-md rounded-xl flex items-center justify-center gap-2"
-          >
-            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-            </svg>
-            {whatsappStatus === 'SENT' ? 'RESEND ON WHATSAPP' : 'SEND ON WHATSAPP'}
-          </button>
-        )}
-
         <div className={`grid ${displayStatus === 'CLAIMED' ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
           <Link
             href={`/dashboard/coupons/${coupon.coupon_code}`}
