@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createCoupon } from '@/app/actions/coupons';
 import { validateCouponForm } from '@/lib/utils/validators';
-import { getTodayIST } from '@/lib/utils/formatters';
+import { getTodayIST, formatCurrency } from '@/lib/utils/formatters';
+import { computeDisplayStatus } from '@/lib/utils/statusCompute';
 import type { Coupon } from '@/lib/types';
 
 export default function CreateCouponPage() {
@@ -88,6 +89,71 @@ export default function CreateCouponPage() {
 
   return (
     <div className="create-coupon-page max-w-xl mx-auto space-y-6">
+      {/* Existing Coupon Modal Pop-up */}
+      {existingCoupon && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-[#D4AF37]/40 text-center space-y-4 animate-scaleUp">
+            {/* Top Icon */}
+            <div className="w-16 h-16 rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto text-3xl shadow-xs">
+              📱
+            </div>
+
+            <div>
+              <h3 className="font-serif font-bold text-xl text-[#3E2723]">
+                Coupon Already Exists
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                A gift coupon is already registered for <strong>+91 {existingCoupon.phone_number}</strong>.
+              </p>
+            </div>
+
+            {/* Existing Coupon Details Card */}
+            <div className="bg-[#FAF8F5] rounded-2xl p-4 border border-[#D4AF37]/30 text-left space-y-2.5">
+              <div className="flex justify-between items-center pb-2 border-b border-gray-200/60">
+                <span className="font-mono font-bold text-base text-[#B8860B]">
+                  {existingCoupon.coupon_code}
+                </span>
+                <span className={`badge badge-${computeDisplayStatus(existingCoupon).toLowerCase().replace('_', '-')} text-[10px] px-2.5 py-0.5 font-bold`}>
+                  {computeDisplayStatus(existingCoupon)}
+                </span>
+              </div>
+              <div className="text-xs text-gray-700 space-y-1">
+                <p className="flex justify-between">
+                  <span className="text-gray-400">Customer:</span>
+                  <strong className="text-gray-900">{existingCoupon.customer_name}</strong>
+                </p>
+                <p className="flex justify-between">
+                  <span className="text-gray-400">Value:</span>
+                  <strong className="text-[#3E2723] font-bold">{formatCurrency(existingCoupon.coupon_value ?? existingCoupon.value ?? 0)}</strong>
+                </p>
+                <p className="flex justify-between text-[11px] text-gray-500 pt-0.5">
+                  <span>Validity:</span>
+                  <span>{existingCoupon.valid_from} &rarr; {existingCoupon.valid_until}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-1">
+              <Link
+                href={`/dashboard/coupons/${existingCoupon.coupon_code}`}
+                className="btn btn-primary w-full py-3.5 text-sm font-bold flex items-center justify-center gap-2 rounded-xl shadow-md bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white hover:brightness-105 transition-all"
+              >
+                <span>OPEN THIS COUPON</span>
+                <span>&rarr;</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setExistingCoupon(null)}
+                className="btn btn-secondary w-full py-2.5 text-xs font-semibold text-gray-600 hover:text-gray-900 border border-gray-300 rounded-xl transition-all"
+              >
+                Enter Different Mobile Number
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="page-header flex items-center justify-between">
         <div>
           <Link href="/dashboard" className="mobile-form-back md:hidden" aria-label="Back to dashboard">←</Link>
@@ -99,18 +165,6 @@ export default function CreateCouponPage() {
 
       <div className="card bg-white p-5 sm:p-7 rounded-2xl shadow-md border border-gray-200">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {existingCoupon && (
-            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" role="status">
-              <p className="font-semibold">This mobile number already has a coupon.</p>
-              <p className="mt-1">No new coupon was created, so a second coupon cannot be generated for this number.</p>
-              <Link
-                href={`/dashboard/coupons/${existingCoupon.coupon_code}`}
-                className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#25d366] px-4 py-2 font-bold text-white"
-              >
-                OPEN {existingCoupon.coupon_code}
-              </Link>
-            </div>
-          )}
 
           {submitError && (
             <div className="p-4 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm font-medium">
