@@ -40,8 +40,20 @@ export default function AuditLogPage() {
     }
   };
 
+  const getActionLabel = (action: string) => {
+    const labels: Record<string, string> = {
+      COUPON_CREATED: 'Coupon Created',
+      COUPON_CLAIMED: 'Coupon Redeemed',
+      COUPON_CANCELLED: 'Coupon Cancelled',
+      WHATSAPP_PREPARED: 'WhatsApp Prepared',
+      CAMPAIGN_CREATED: 'Campaign Created',
+      CAMPAIGN_UPDATED: 'Campaign Updated',
+    };
+    return labels[action] || action.replace(/_/g, ' ');
+  };
+
   return (
-    <div className="p-4 md:p-8">
+    <div className="audit-log-page p-4 md:p-8">
       <div className="page-header flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Audit Log</h1>
         <div className="filter-bar">
@@ -113,17 +125,17 @@ export default function AuditLogPage() {
             </div>
 
             {/* Mobile Cards */}
-            <div className="md:hidden divide-y divide-gray-200">
+            <div className="audit-timeline md:hidden">
               {filteredLogs.map((log) => (
-                <div key={log.id} className="p-4 space-y-3">
+                <div key={log.id} className="audit-entry">
                   <div className="flex justify-between items-start">
                     <span className={`badge px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionBadgeColor(log.action)}`}>
-                      {log.action}
+                      {getActionLabel(log.action)}
                     </span>
                     <span className="text-xs text-gray-500">{formatDateIndian(log.created_at)}</span>
                   </div>
                   {log.coupon_code && (
-                    <div>
+                    <div className="audit-mobile-details">
                       <span className="text-xs text-gray-500 block mb-1">Coupon</span>
                       <Link href={`/dashboard/coupons/${log.coupon_code}`} className="text-[#3E2723] font-medium text-sm hover:underline">
                         {log.coupon_code}

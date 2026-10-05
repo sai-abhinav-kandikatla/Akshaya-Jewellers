@@ -1,11 +1,11 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiResponse, Coupon, CouponWithDisplayStatus, CreateCouponInput, CouponFilters } from '@/lib/types';
 import { generateCouponCode } from '@/lib/utils/couponCode';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
-import { normalizePhone } from '@/lib/utils/validators';
+import { isUuid } from '@/lib/utils/identifiers';
+import { isValidIndianMobile, normalizePhone } from '@/lib/utils/validators';
 import { logAuditEvent } from './audit';
 import { sendWhatsAppCloudAPI } from './whatsapp';
 import { syncCouponToExcel } from './excel';
@@ -20,6 +20,30 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
     }
 
     const phone = normalizePhone(input.phone_number);
+    if (!isValidIndianMobile(phone)) {
+      return { success: false, error: 'Enter a valid Indian mobile number.' };
+    }
+
+    const findExistingCouponForPhone = () => supabase
+      .from('coupons')
+      .select('*')
+      .ilike('phone_number', `%${phone}`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { data: existingCoupon, error: existingCouponError } = await findExistingCouponForPhone();
+    if (existingCouponError) {
+      return { success: false, error: `Database Error: ${existingCouponError.message}` };
+    }
+    if (existingCoupon) {
+      return {
+        success: true,
+        message: 'This mobile number already has a coupon. The existing coupon was opened.',
+        data: existingCoupon,
+      };
+    }
+
     let code = '';
     let retryCount = 0;
     let coupon = null;
@@ -49,6 +73,17 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
       
       lastError = error;
       if (error && error.code === '23505') {
+        if (error.message?.includes('already exists for this mobile number')) {
+          const { data: concurrentlyCreatedCoupon } = await findExistingCouponForPhone();
+          if (concurrentlyCreatedCoupon) {
+            return {
+              success: true,
+              message: 'This mobile number already has a coupon. The existing coupon was opened.',
+              data: concurrentlyCreatedCoupon,
+            };
+          }
+          return { success: false, error: 'A coupon already exists for this mobile number.' };
+        }
         retryCount++;
       } else {
         console.error('Error creating coupon:', error);
@@ -112,7 +147,7 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
     const now = new Date();
     const istStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
-    let query = supabase.from('coupons').select('*, campaigns(name)', { count: 'exact' });
+    let query = supabase.from('coupons').select('*', { count: 'exact' });
 
     if (filters.search) {
       query = query.or(`coupon_code.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,phone_number.ilike.%${filters.search}%`);
@@ -129,6 +164,19 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
 
     if (filters.date_to) {
       query = query.lte('valid_until', filters.date_to);
+    }
+
+    if (filters.value_min !== undefined && Number.isFinite(filters.value_min)) {
+      query = query.gte('coupon_value', filters.value_min);
+    }
+    if (filters.value_max !== undefined && Number.isFinite(filters.value_max)) {
+      query = query.lte('coupon_value', filters.value_max);
+    }
+    if (filters.customer) {
+      query = query.ilike('customer_name', `%${filters.customer}%`);
+    }
+    if (filters.phone) {
+      query = query.ilike('phone_number', `%${filters.phone}%`);
     }
 
     if (filters.status && filters.status !== 'ALL') {
@@ -165,7 +213,6 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
         ...c,
         value: val,
         coupon_value: val,
-        campaign_name: c.campaigns?.name,
         display_status: computeDisplayStatus(c.status, c.valid_from, c.valid_until)
       };
     });
@@ -180,13 +227,19 @@ export async function getCoupons(filters: CouponFilters): Promise<{ coupons: Cou
 export async function getCouponByCode(code: string): Promise<CouponWithDisplayStatus | null> {
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    const query = supabase
       .from('coupons')
-      .select('*, campaigns(name)')
-      .or(`coupon_code.eq.${code},id.eq.${code}`)
-      .single();
+      .select('*');
+    const identifier = code.trim();
+    const { data, error } = isUuid(identifier)
+      ? await query.eq('id', identifier).maybeSingle()
+      : await query.eq('coupon_code', identifier.toUpperCase()).maybeSingle();
 
-    if (error || !data) {
+    if (error) {
+      console.error('getCouponByCode database error:', error);
+      throw new Error('Unable to load this coupon from the database. Check the Supabase configuration and try again.');
+    }
+    if (!data) {
       return null;
     }
 
@@ -195,12 +248,13 @@ export async function getCouponByCode(code: string): Promise<CouponWithDisplaySt
       ...data,
       value: val,
       coupon_value: val,
-      campaign_name: data.campaigns?.name,
       display_status: computeDisplayStatus(data.status, data.valid_from, data.valid_until)
     };
   } catch (error) {
     console.error('getCouponByCode exception:', error);
-    return null;
+    throw error instanceof Error
+      ? error
+      : new Error('Unable to load this coupon. Please try again.');
   }
 }
 
@@ -208,15 +262,21 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
   try {
     const supabase = createAdminClient();
     
-    // Find coupon by code or ID
-    const { data: coupon, error: findError } = await supabase
+    // Query the UUID ID column only for UUID-shaped identifiers. Mixing it
+    // into an OR filter with a coupon code makes Postgres cast AKS-… to UUID.
+    const query = supabase
       .from('coupons')
-      .select('*')
-      .or(`coupon_code.eq.${identifier},id.eq.${identifier}`)
-      .single();
+      .select('*');
+    const search = identifier.trim();
+    const { data: coupon, error: findError } = isUuid(search)
+      ? await query.eq('id', search).maybeSingle()
+      : await query.eq('coupon_code', search.toUpperCase()).maybeSingle();
 
-    if (findError || !coupon) {
+    if (findError) {
       console.error('claimCoupon find error:', findError);
+      return { success: false, error: 'Unable to load this coupon from the database. Check the Supabase configuration and try again.' };
+    }
+    if (!coupon) {
       return { success: false, error: 'Coupon not found.' };
     }
 
@@ -267,13 +327,19 @@ export async function cancelCoupon(identifier: string, reason?: string): Promise
   try {
     const supabase = createAdminClient();
     
-    const { data: coupon, error: findError } = await supabase
+    const query = supabase
       .from('coupons')
-      .select('*')
-      .or(`coupon_code.eq.${identifier},id.eq.${identifier}`)
-      .single();
+      .select('*');
+    const search = identifier.trim();
+    const { data: coupon, error: findError } = isUuid(search)
+      ? await query.eq('id', search).maybeSingle()
+      : await query.eq('coupon_code', search.toUpperCase()).maybeSingle();
 
-    if (findError || !coupon) {
+    if (findError) {
+      console.error('cancelCoupon find error:', findError);
+      return { success: false, error: 'Unable to load this coupon from the database. Check the Supabase configuration and try again.' };
+    }
+    if (!coupon) {
       return { success: false, error: 'Coupon not found.' };
     }
 
@@ -307,11 +373,13 @@ export async function cancelCoupon(identifier: string, reason?: string): Promise
 export async function getCouponForVerification(code: string): Promise<CouponWithDisplayStatus | null> {
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    const query = supabase
       .from('coupons')
-      .select('*, campaigns(name)')
-      .or(`coupon_code.eq.${code},id.eq.${code}`)
-      .single();
+      .select('*');
+    const identifier = code.trim();
+    const { data, error } = isUuid(identifier)
+      ? await query.eq('id', identifier).maybeSingle()
+      : await query.eq('coupon_code', identifier.toUpperCase()).maybeSingle();
 
     if (error || !data) {
       return null;
@@ -322,7 +390,6 @@ export async function getCouponForVerification(code: string): Promise<CouponWith
       ...data,
       value: val,
       coupon_value: val,
-      campaign_name: data.campaigns?.name,
       display_status: computeDisplayStatus(data.status, data.valid_from, data.valid_until)
     };
   } catch (error) {

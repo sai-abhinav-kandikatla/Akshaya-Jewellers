@@ -4,6 +4,7 @@ import React from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { formatCurrency, formatIndianDate, formatDateTime } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
+import { isUuid } from '@/lib/utils/identifiers';
 import { Coupon } from '@/lib/types';
 import PublicClaimButton from './PublicClaimButton';
 
@@ -12,16 +13,21 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
   const resolvedParams = await params;
   const code = resolvedParams.code;
   
-  const { data: coupon, error } = await supabase
+  const query = supabase
     .from('coupons')
-    .select('*')
-    .or(`coupon_code.eq.${code},id.eq.${code}`)
-    .single();
+    .select('*');
+  const { data: coupon, error } = isUuid(code)
+    ? await query.eq('id', code).maybeSingle()
+    : await query.eq('coupon_code', code.toUpperCase()).maybeSingle();
+
+  if (error) {
+    console.error('Public coupon verification database error:', error);
+  }
 
   if (error || !coupon) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-[#fdfbf7]">
-        <div className="card max-w-sm w-full p-6 text-center bg-white rounded-2xl shadow-xl border border-red-100 space-y-3">
+      <div className="public-verify-page min-h-screen flex items-center justify-center p-4 bg-[#fdfbf7]">
+        <div className="public-verification-error card max-w-sm w-full p-6 text-center bg-white rounded-2xl shadow-xl border border-red-100 space-y-3">
           <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600">
             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <circle cx="12" cy="12" r="10" />
@@ -30,7 +36,11 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
             </svg>
           </div>
           <h2 className="text-xl font-bold text-gray-900">Invalid Coupon</h2>
-          <p className="text-xs text-gray-500">The coupon code you scanned is invalid or does not exist.</p>
+          <p className="text-xs text-gray-500">
+            {error
+              ? 'Coupon verification is temporarily unavailable. Please try again.'
+              : 'The coupon code you scanned is invalid or does not exist.'}
+          </p>
         </div>
       </div>
     );
@@ -39,18 +49,18 @@ export default async function PublicVerifyPage({ params }: { params: Promise<{ c
   const status = computeDisplayStatus(coupon as Coupon);
 
   return (
-    <div className="min-h-screen bg-[#fdfbf7] flex flex-col items-center justify-center p-4">
-      <div className="card max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 space-y-0">
+    <div className="public-verify-page min-h-screen bg-[#fdfbf7] flex flex-col items-center justify-center p-4">
+      <div className="public-verification-card card max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 space-y-0">
         
         {/* Official Brand Header */}
-        <div className="bg-[#1a1a1a] p-6 text-center text-[#d4af37] flex flex-col items-center border-b-2 border-[#d4af37]">
+        <div className="public-verification-brand bg-[#1a1a1a] p-6 text-center text-[#d4af37] flex flex-col items-center border-b-2 border-[#d4af37]">
           <img src="/logo.png" alt="Akshaya Jewellers Logo" className="w-16 h-16 rounded-full object-cover mb-2 border-2 border-[#D4AF37] shadow-lg" />
           <h1 className="text-xl font-serif font-bold tracking-widest text-[#d4af37] uppercase">AKSHAYA JEWELLERY</h1>
           <p className="text-xs tracking-wider opacity-80 mt-0.5 text-gold-200">COUPON VERIFICATION</p>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-5">
+        <div className="public-verification-content p-6 space-y-5">
           <div className="text-center">
             <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Coupon Code</p>
             <h2 className="text-2xl sm:text-3xl font-mono font-bold text-gray-900 my-1">{coupon.coupon_code}</h2>

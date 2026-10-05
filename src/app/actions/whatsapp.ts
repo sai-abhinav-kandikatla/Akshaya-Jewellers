@@ -1,8 +1,15 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isUuid } from '@/lib/utils/identifiers';
 import { ApiResponse, Coupon } from '@/lib/types';
 import { generateWhatsAppMessage } from '@/lib/utils/whatsapp';
+
+export async function getWhatsAppCloudApiStatus(): Promise<{ configured: boolean }> {
+  return {
+    configured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
+  };
+}
 
 export async function sendWhatsAppCloudAPI(coupon: Coupon, verificationUrl?: string): Promise<ApiResponse> {
   try {
@@ -59,15 +66,15 @@ export async function sendWhatsAppCloudAPI(coupon: Coupon, verificationUrl?: str
       }
     }
 
-    // Default: Mark ready for instant wa.me link sending
+    // Without Cloud API credentials, prepare a wa.me link for the operator.
     await supabase
       .from('coupons')
-      .update({ whatsapp_status: 'SENT' } as any)
+      .update({ whatsapp_status: 'PREPARED' } as any)
       .eq('id', coupon.id);
 
     return {
       success: true,
-      message: 'WhatsApp message prepared for instant customer delivery.',
+      message: 'WhatsApp message is ready to send. Cloud API credentials are not configured.',
     };
   } catch (err: any) {
     console.error('sendWhatsAppCloudAPI error:', err);
@@ -81,13 +88,19 @@ export async function sendWhatsAppCloudAPI(coupon: Coupon, verificationUrl?: str
 export async function retryWhatsAppSending(identifier: string): Promise<ApiResponse> {
   try {
     const supabase = createAdminClient();
-    const { data: coupon, error } = await supabase
+    const query = supabase
       .from('coupons')
-      .select('*')
-      .or(`coupon_code.eq.${identifier},id.eq.${identifier}`)
-      .single();
+      .select('*');
+    const search = identifier.trim();
+    const { data: coupon, error } = isUuid(search)
+      ? await query.eq('id', search).maybeSingle()
+      : await query.eq('coupon_code', search.toUpperCase()).maybeSingle();
 
-    if (error || !coupon) {
+    if (error) {
+      console.error('retryWhatsAppSending lookup error:', error);
+      return { success: false, error: 'Unable to load this coupon from the database. Check the Supabase configuration and try again.' };
+    }
+    if (!coupon) {
       return { success: false, error: 'Coupon not found.' };
     }
 

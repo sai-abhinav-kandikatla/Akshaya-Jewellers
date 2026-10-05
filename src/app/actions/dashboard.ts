@@ -73,7 +73,7 @@ export async function getRecentCoupons(limit: number = 10): Promise<CouponWithDi
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('coupons')
-      .select('*, campaigns(name)')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -85,7 +85,6 @@ export async function getRecentCoupons(limit: number = 10): Promise<CouponWithDi
     return (data || []).map((c: any) => ({
       ...c,
       value: Number(c.coupon_value ?? c.value ?? 0),
-      campaign_name: c.campaigns?.name,
       display_status: computeDisplayStatus(c.status, c.valid_from, c.valid_until)
     }));
   } catch (error) {

@@ -47,6 +47,9 @@ export interface Coupon {
   claimed_by: string | null;
   cancelled_at: string | null;
   cancelled_by: string | null;
+  whatsapp_status?: 'SENT' | 'PREPARED' | 'FAILED' | null;
+  excel_sync_status?: 'SYNCED' | 'PENDING' | 'ERROR' | null;
+  excel_synced_at?: string | null;
   // Joined fields
   campaign?: Campaign | null;
 }
@@ -109,6 +112,10 @@ export interface CouponFilters {
   campaignId?: string;
   date_from?: string;
   date_to?: string;
+  value_min?: number;
+  value_max?: number;
+  customer?: string;
+  phone?: string;
   page?: number;
   per_page?: number;
   limit?: number;

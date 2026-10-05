@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { getCouponByCode, claimCoupon, cancelCoupon } from '@/app/actions/coupons';
+import { getCampaignById } from '@/app/actions/campaigns';
 import { getCouponAuditHistory } from '@/app/actions/audit';
 import { formatCurrency, formatIndianDate, formatDateTime } from '@/lib/utils/formatters';
 import { computeDisplayStatus } from '@/lib/utils/statusCompute';
@@ -14,6 +15,7 @@ import { Coupon, AuditEvent } from '@/lib/types';
 export default function CouponDetailPage({ params }: { params: Promise<{ code: string }> | { code: string } }) {
   const router = useRouter();
   const [coupon, setCoupon] = useState<Coupon | null>(null);
+  const [campaignName, setCampaignName] = useState<string | null>(null);
   const [auditHistory, setAuditHistory] = useState<AuditEvent[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
@@ -37,6 +39,12 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
       const data = await getCouponByCode(code);
       if (data) {
         setCoupon(data);
+        if (data.campaign_id) {
+          const campaign = await getCampaignById(data.campaign_id);
+          setCampaignName(campaign?.name || null);
+        } else {
+          setCampaignName(null);
+        }
         const history = await getCouponAuditHistory(data.id);
         setAuditHistory(history);
       } else {
@@ -121,7 +129,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
   const verificationUrl = typeof window !== 'undefined' ? `${window.location.origin}/verify/${coupon.coupon_code}` : '';
 
   return (
-    <div className="max-w-xl mx-auto space-y-6 pb-8">
+    <div className="coupon-detail-page max-w-xl mx-auto space-y-6 pb-8">
       {toast && (
         <div className="toast-container fixed bottom-20 right-4 z-50">
           <div className={`toast px-4 py-2 rounded-xl text-xs font-semibold shadow-xl text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-gray-900'}`}>
@@ -135,8 +143,8 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-slideUp">
             <div className="text-center">
-              <h3 className={`text-xl font-bold ${modalState.type === 'CANCEL' ? 'text-red-600' : 'text-gray-900'}`}>
-                {modalState.type === 'CLAIM' ? 'Redeem this coupon?' : 'Cancel this coupon?'}
+            <h3 className={`text-xl font-bold ${modalState.type === 'CANCEL' ? 'text-red-600' : 'text-gray-900'}`}>
+                {modalState.type === 'CLAIM' ? 'Redeem Coupon?' : 'Cancel this coupon?'}
               </h3>
               <p className="text-xs text-gray-500 mt-1">This action cannot be undone.</p>
             </div>
@@ -181,7 +189,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
       </div>
 
       {/* Main Info Card */}
-      <div className="card bg-white p-5 rounded-2xl shadow-md border border-gray-200 space-y-4">
+      <div className="coupon-detail-card card bg-white p-5 rounded-2xl shadow-md border border-gray-200 space-y-4">
         <div className="text-center border-b border-gray-100 pb-4">
           <p className="text-xs text-gray-400 uppercase font-semibold">Coupon Code</p>
           <h1 className="text-2xl sm:text-3xl font-mono font-bold text-gray-900 my-1">{coupon.coupon_code}</h1>
@@ -201,9 +209,25 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
             <span className="text-gray-500">Validity Period</span>
             <span className="font-semibold text-gray-800">{formatIndianDate(coupon.valid_from)} – {formatIndianDate(coupon.valid_until)}</span>
           </div>
+          {campaignName && (
+            <div className="md:hidden flex justify-between border-b border-gray-50 pb-2">
+              <span className="text-gray-500">Campaign</span>
+              <span className="font-semibold text-gray-800 text-right">{campaignName}</span>
+            </div>
+          )}
 
           {status === 'CLAIMED' && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800 font-medium">
+            <div className="md:hidden p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 font-medium text-center">
+              <span className="block text-2xl mb-1" aria-hidden="true">✓</span>
+              <strong className="block text-base">COUPON REDEEMED</strong>
+              <span className="block mt-1">{coupon.coupon_code} · {formatCurrency(coupon.value)}</span>
+              <span className="block text-xs mt-1">Claimed {coupon.claimed_at ? formatDateTime(coupon.claimed_at) : ''}</span>
+              <span className="block text-xs mt-2">Excel {coupon.excel_sync_status === 'SYNCED' ? '✓ Updated' : coupon.excel_sync_status === 'ERROR' ? '⚠ Update failed' : '⏳ Update pending'}</span>
+            </div>
+          )}
+
+          {status === 'CLAIMED' && (
+            <div className="hidden-mobile p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800 font-medium">
               ✓ Redeemed on {coupon.claimed_at ? formatDateTime(coupon.claimed_at) : ''}
             </div>
           )}
@@ -222,7 +246,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
         </div>
 
         {/* QR Code */}
-        <div className="text-center pt-2">
+        <div className="coupon-qr text-center pt-2">
           <div className="inline-block p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
             {verificationUrl && <QRCodeSVG value={verificationUrl} size={150} level="M" />}
           </div>
@@ -235,7 +259,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
         {status === 'ACTIVE' && (
           <button
             onClick={() => setModalState({ isOpen: true, type: 'CLAIM' })}
-            className="btn btn-primary btn-lg w-full font-bold shadow-md rounded-xl"
+            className="coupon-action-primary btn btn-primary btn-lg w-full font-bold shadow-md rounded-xl"
           >
             CLAIM / REDEEM COUPON
           </button>

@@ -1,79 +1,50 @@
 'use client';
 
-import { useRef, useState, useEffect, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { computeDisplayStatus, getStatusLabel } from '@/lib/utils/statusCompute';
-import { getDashboardStats } from '@/app/actions/dashboard';
 
-export default function DashboardClient({ initialStats, recentCoupons, campaigns }: any) {
-  const [selectedCampaign, setSelectedCampaign] = useState('all');
-  const [stats, setStats] = useState(initialStats);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [greeting, setGreeting] = useState('Good Morning');
-  const campaignRequestId = useRef(0);
-
-  useEffect(() => {
-    // Determine greeting in IST timezone
+export default function DashboardClient({ initialStats, recentCoupons }: any) {
+  const [greeting] = useState(() => {
     const hourStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit' });
     const hour = parseInt(hourStr, 10);
-    if (hour >= 5 && hour < 12) setGreeting('Good Morning');
-    else if (hour >= 12 && hour < 17) setGreeting('Good Afternoon');
-    else setGreeting('Good Evening');
-  }, []);
-
-  const handleCampaignChange = async (event: ChangeEvent<HTMLSelectElement>) => {
-    const campaignId = event.target.value;
-    const requestId = ++campaignRequestId.current;
-    setSelectedCampaign(campaignId);
-
-    if (campaignId === 'all') {
-      setStats(initialStats);
-      setStatsLoading(false);
-      return;
-    }
-
-    setStatsLoading(true);
-    try {
-      const nextStats = await getDashboardStats(campaignId);
-      if (requestId === campaignRequestId.current) setStats(nextStats);
-    } catch (error) {
-      console.error('Failed to load campaign stats', error);
-    } finally {
-      if (requestId === campaignRequestId.current) setStatsLoading(false);
-    }
-  };
+    if (hour >= 5 && hour < 12) return 'Good Morning';
+    if (hour >= 12 && hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  });
 
   return (
     <div className="space-y-6">
-      {/* Top Greeting & Campaign Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#3E2723]">
-            {greeting}, Admin 👋
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-            Akshaya Jewellery Digital Gift Coupon System
-          </p>
-        </div>
-        <select 
-          className="form-input max-w-xs text-sm py-2 px-3 bg-white border border-gray-300 rounded-xl"
-          value={selectedCampaign}
-          onChange={handleCampaignChange}
-          aria-label="Filter dashboard by campaign"
-        >
-          <option value="all">All Campaigns</option>
-          {campaigns?.map((c: any) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+      <div>
+        <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#3E2723]">
+          {greeting}, Admin 👋
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+          Akshaya Jewellery Digital Gift Coupon System
+        </p>
       </div>
+
+      <nav className="dashboard-quick-actions" aria-label="Quick actions">
+        <Link href="/dashboard/coupons/create" className="dashboard-quick-action dashboard-quick-action--create">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path d="M12 4v16m8-8H4" /></svg>
+          <span>Create coupon</span>
+        </Link>
+        <Link href="/dashboard/verify" className="dashboard-quick-action dashboard-quick-action--verify">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden="true"><path d="m9 12 2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+          <span>Verify coupon</span>
+        </Link>
+        <Link href="/dashboard/coupons" className="dashboard-quick-action dashboard-quick-action--coupons">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+          <span>All coupons</span>
+        </Link>
+      </nav>
 
       {/* Primary CTA (Master Prompt Section 9) */}
       <div className="w-full">
         <Link 
           href="/dashboard/coupons/create"
-          className="btn btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 rounded-2xl shadow-md hover:shadow-lg transition-all"
+          className="dashboard-create-btn btn btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 rounded-2xl shadow-md hover:shadow-lg transition-all"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
             <path d="M12 4v16m8-8H4" />
@@ -83,27 +54,41 @@ export default function DashboardClient({ initialStats, recentCoupons, campaigns
       </div>
 
       {/* Featured Total Coupons Card */}
-      <div className="card bg-[#3E2723] text-white p-5 rounded-2xl shadow-md flex items-center justify-between">
+      <div className="dashboard-total-card card bg-[#3E2723] text-white p-5 rounded-2xl shadow-md flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-wider text-gray-300 font-semibold">Total Coupons Created</p>
           <p className="text-3xl sm:text-4xl font-serif font-bold text-[#D4AF37] mt-1">
-            {new Intl.NumberFormat('en-IN').format(stats?.total_count || 0)}
+            {new Intl.NumberFormat('en-IN').format(initialStats?.total_count || 0)}
           </p>
         </div>
-        <div className="text-right">
+        <div className="dashboard-total-value-desktop text-right">
           <p className="text-xs text-gray-300">Total Value</p>
-          <p className="text-lg font-bold text-white">{formatCurrency(stats?.total_value || 0)}</p>
+          <p className="text-lg font-bold text-white">{formatCurrency(initialStats?.total_value || 0)}</p>
         </div>
       </div>
 
       {/* Compact 2-Column Mobile Metric Grid (Master Prompt Section 8) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3" aria-busy={statsLoading}>
-        <CompactStatCard title="ACTIVE" count={stats?.active_count || 0} color="border-l-4 border-green-500 bg-green-50/40" textColor="text-green-700" />
-        <CompactStatCard title="NOT ACTIVE" count={stats?.not_active_count || 0} color="border-l-4 border-amber-500 bg-amber-50/40" textColor="text-amber-700" />
-        <CompactStatCard title="CLAIMED" count={stats?.claimed_count || 0} value={formatCurrency(stats?.claimed_value || 0)} color="border-l-4 border-blue-500 bg-blue-50/40" textColor="text-blue-700" />
-        <CompactStatCard title="EXPIRED" count={stats?.expired_count || 0} color="border-l-4 border-red-500 bg-red-50/40" textColor="text-red-700" />
-        <CompactStatCard title="CANCELLED" count={stats?.cancelled_count || 0} color="border-l-4 border-gray-400 bg-gray-50" textColor="text-gray-700" />
-        <CompactStatCard title="CLAIMED VALUE" count={formatCurrency(stats?.claimed_value || 0)} color="border-l-4 border-[#D4AF37] bg-gold-50/40" textColor="text-[#b8860b]" isValueOnly />
+      <div className="dashboard-stat-section">
+        <h2 className="dashboard-stat-heading text-sm font-bold uppercase tracking-wider text-gray-600 mb-2">Coupon Overview</h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <CompactStatCard title="ACTIVE" count={initialStats?.active_count || 0} color="border-l-4 border-green-500 bg-green-50/40" textColor="text-green-700" />
+        <CompactStatCard title="NOT ACTIVE" count={initialStats?.not_active_count || 0} color="border-l-4 border-amber-500 bg-amber-50/40" textColor="text-amber-700" />
+        <CompactStatCard title="CLAIMED" count={initialStats?.claimed_count || 0} color="border-l-4 border-blue-500 bg-blue-50/40" textColor="text-blue-700" />
+        <CompactStatCard title="EXPIRED" count={initialStats?.expired_count || 0} color="border-l-4 border-red-500 bg-red-50/40" textColor="text-red-700" />
+        <CompactStatCard title="CANCELLED" count={initialStats?.cancelled_count || 0} color="border-l-4 border-gray-400 bg-gray-50" textColor="text-gray-700" />
+        <div className="hidden-mobile"><CompactStatCard title="CLAIMED VALUE" count={formatCurrency(initialStats?.claimed_value || 0)} color="border-l-4 border-[#D4AF37] bg-gold-50/40" textColor="text-[#b8860b]" isValueOnly /></div>
+      </div>
+      </div>
+
+      <div className="dashboard-value-summary card bg-white border border-gray-200 rounded-2xl shadow-sm grid grid-cols-2 divide-x divide-gray-100 md:hidden">
+        <div className="p-4">
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Total Value</p>
+          <p className="text-lg font-bold text-[#3E2723] mt-1">{formatCurrency(initialStats?.total_value || 0)}</p>
+        </div>
+        <div className="p-4">
+          <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold">Claimed Value</p>
+          <p className="text-lg font-bold text-[#8b6600] mt-1">{formatCurrency(initialStats?.claimed_value || 0)}</p>
+        </div>
       </div>
 
       {/* Recent Coupons List */}

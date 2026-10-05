@@ -8,6 +8,7 @@ const homeIcon = <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" />
 const createIcon = <path d="M12 4v16m8-8H4" />;
 const allIcon = <path d="M4 6h16M4 12h16M4 18h16" />;
 const verifyIcon = <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />;
+const settingsIcon = <path d="M12 8a4 4 0 100 8 4 4 0 000-8zm8 4a8 8 0 01-.2 1.8l1.4 1.1-1.5 2.6-1.7-.7a8 8 0 01-3.1 1.8l-.2 1.8h-3l-.2-1.8a8 8 0 01-3.1-1.8l-1.7.7-1.5-2.6 1.4-1.1A8 8 0 016.4 12l-1.4-1.1 1.5-2.6 1.7.7a8 8 0 013.1-1.8l.2-1.8h3l.2 1.8a8 8 0 013.1 1.8l1.7-.7 1.5 2.6-1.4 1.1A8 8 0 0120 12z" />;
 
 const desktopNavItems = [
   { name: 'Dashboard', href: '/dashboard', icon: homeIcon },
@@ -18,10 +19,11 @@ const desktopNavItems = [
 ];
 
 const mobilePrimaryActions = [
-  { name: 'Home', label: 'Dashboard', href: '/dashboard', theme: 'home', icon: homeIcon },
-  { name: 'Create', label: 'Create Coupon', href: '/dashboard/coupons/create', theme: 'create', icon: createIcon },
-  { name: 'All', label: 'All Coupons', href: '/dashboard/coupons', theme: 'all', icon: allIcon },
-  { name: 'Verify', label: 'Verify Coupon', href: '/dashboard/verify', theme: 'verify', icon: verifyIcon },
+  { name: 'Home', label: 'Home', href: '/dashboard', theme: 'home', icon: homeIcon },
+  { name: 'Coupons', label: 'Coupons', href: '/dashboard/coupons', theme: 'coupons', icon: allIcon },
+  { name: 'Create', label: 'Create', href: '/dashboard/coupons/create', theme: 'create', icon: createIcon },
+  { name: 'Verify', label: 'Verify', href: '/dashboard/verify', theme: 'verify', icon: verifyIcon },
+  { name: 'Settings', label: 'Settings', href: '/dashboard/settings', theme: 'settings', icon: settingsIcon },
 ];
 
 export default function DashboardShell({
@@ -60,7 +62,7 @@ export default function DashboardShell({
                 <path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1-2 2-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5v.2h-2.8V20a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.8.3l-.1.1-2-2 .1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H6v-2.8h.2a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.8l-.1-.1 2-2 .1.1a1.7 1.7 0 001.8.3 1.7 1.7 0 001-1.5V5h2.8v.2a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1 2 2-.1.1a1.7 1.7 0 00-.3 1.8 1.7 1.7 0 001.5 1h.2V14h-.2a1.7 1.7 0 00-1.5 1z" />
               </svg>
             </Link>
-            <button onClick={handleLogout} className="mobile-logout">
+            <button onClick={handleLogout} className="mobile-logout" aria-label="Log out" title="Log out">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>

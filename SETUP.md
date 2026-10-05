@@ -27,6 +27,8 @@
 5. Click **Run**
 6. You should see "Success" — this creates all tables, indexes, RLS policies, and RPC functions
 
+For an existing deployment, run `supabase/prevent_duplicate_coupon_numbers.sql` in the SQL Editor to add the one-coupon-per-mobile safeguard without rerunning the full migration.
+
 ---
 
 ## Step 3: Configure Environment Variables
@@ -97,7 +99,9 @@ After creating your admin account, to prevent others from signing up:
    - `ADMIN_USERNAME`
    - `ADMIN_PASSWORD`
    - `ADMIN_SESSION_SECRET`
-4. Deploy!
+   Keep the admin variables server-only; do not prefix them with `NEXT_PUBLIC_`.
+4. Make sure they apply to the **Production** environment (and Preview too if you test there).
+5. Deploy or redeploy after saving the variables. Existing Vercel deployments do not receive environment-variable changes.
 
 ---
 
@@ -112,8 +116,10 @@ After creating your admin account, to prevent others from signing up:
 - Make sure the `/verify/[code]` route is accessible
 
 ### Login not working
-- Check Supabase Dashboard → Authentication → Users to see if the user exists
-- Check if email confirmation is required and complete it
+- If the login page says admin login is not configured, add `ADMIN_USERNAME` and `ADMIN_PASSWORD` to the server environment.
+- If it says session signing is not configured, add `ADMIN_SESSION_SECRET`.
+- On Vercel, set these under Project Settings → Environment Variables for the Production environment, then redeploy.
+- Do not use `NEXT_PUBLIC_` for admin credentials or the session secret.
 
 ### Timezone issues
 - All dates are handled in IST (Asia/Kolkata)

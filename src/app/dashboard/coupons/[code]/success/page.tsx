@@ -81,9 +81,26 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
     : `https://akshaya-jewellers-mncl.vercel.app/verify/${coupon.coupon_code}`;
 
   const displayStatus = computeDisplayStatus(coupon);
+  const whatsappStatus = coupon.whatsapp_status;
+  const excelStatus = coupon.excel_sync_status;
+
+  const whatsappLabel = whatsappStatus === 'SENT'
+    ? 'Sent via Cloud API'
+    : whatsappStatus === 'PREPARED'
+      ? 'Ready to send'
+      : whatsappStatus === 'FAILED'
+        ? 'Send failed'
+        : 'Not sent';
+  const excelLabel = excelStatus === 'SYNCED'
+    ? 'Synced'
+    : excelStatus === 'ERROR'
+      ? 'Sync failed'
+      : excelStatus === 'PENDING'
+        ? 'Pending setup'
+        : 'Not synced';
 
   return (
-    <div className="max-w-lg mx-auto space-y-6 pb-8">
+    <div className="coupon-success-page max-w-lg mx-auto space-y-6 pb-8">
       {toast && (
         <div className="toast-container fixed bottom-20 right-4 z-50">
           <div className="toast bg-gray-900 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xl">
@@ -105,24 +122,24 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
 
       {/* Status Indicators Cards (Master Prompt Section 16-18) */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2">
-          <span className="text-base">✓</span>
+        <div className={`p-3 border rounded-xl flex items-center gap-2 ${whatsappStatus === 'SENT' ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+          <span className="text-base">{whatsappStatus === 'SENT' ? '✓' : '•'}</span>
           <div>
-            <p className="text-[10px] uppercase font-bold text-green-800">WhatsApp</p>
-            <p className="text-xs font-semibold text-green-700">Automatically Sent</p>
+            <p className="text-[10px] uppercase font-bold text-gray-800">WhatsApp</p>
+            <p className="text-xs font-semibold text-gray-700">{whatsappLabel}</p>
           </div>
         </div>
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2">
-          <span className="text-base">✓</span>
+        <div className={`p-3 border rounded-xl flex items-center gap-2 ${excelStatus === 'SYNCED' ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
+          <span className="text-base">{excelStatus === 'SYNCED' ? '✓' : '•'}</span>
           <div>
-            <p className="text-[10px] uppercase font-bold text-blue-800">Excel Sync</p>
-            <p className="text-xs font-semibold text-blue-700">Synced</p>
+            <p className="text-[10px] uppercase font-bold text-gray-800">Excel Sync</p>
+            <p className="text-xs font-semibold text-gray-700">{excelLabel}</p>
           </div>
         </div>
       </div>
 
       {/* Main Coupon Card */}
-      <div className="card bg-white p-5 rounded-2xl shadow-md border border-gray-200 space-y-4">
+      <div className="coupon-success-card card bg-white p-5 rounded-2xl shadow-md border border-gray-200 space-y-4">
         <div className="flex justify-between items-start border-b border-gray-100 pb-3">
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Customer</p>
@@ -137,7 +154,7 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
 
         <div className="bg-[#fdfbf7] p-4 rounded-xl text-center border border-dashed border-[#d4af37]">
           <p className="text-[10px] text-gray-500 uppercase tracking-wider">Coupon Code</p>
-          <h2 className="text-2xl font-mono font-bold tracking-wider text-gray-900 my-1">{coupon.coupon_code}</h2>
+          <h2 className="coupon-success-code text-2xl font-mono font-bold tracking-wider text-gray-900 my-1">{coupon.coupon_code}</h2>
           <span className={`badge badge-${displayStatus.toLowerCase().replace('_', '-')}`}>
             {displayStatus}
           </span>
@@ -155,7 +172,7 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
         </div>
 
         {/* Prominent QR Code */}
-        <div className="pt-2 text-center">
+        <div className="coupon-qr pt-2 text-center">
           <div className="inline-block p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
             <QRCodeSVG value={verificationUrl} size={150} level="M" />
             <p className="text-[10px] text-gray-400 mt-2 font-medium">Scan for public verification</p>
@@ -172,7 +189,7 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
           </svg>
-          RESEND ON WHATSAPP
+          {whatsappStatus === 'SENT' ? 'RESEND ON WHATSAPP' : 'SEND ON WHATSAPP'}
         </button>
 
         <div className="grid grid-cols-2 gap-3">

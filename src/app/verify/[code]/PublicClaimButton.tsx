@@ -49,14 +49,14 @@ export default function PublicClaimButton({ couponCode, customerName, couponValu
       <button
         type="button"
         onClick={() => setShowConfirmModal(true)}
-        className="btn btn-primary w-full py-4 text-lg font-bold shadow-lg tracking-wide rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:opacity-90 transition-opacity"
+        className="public-claim-button btn btn-primary w-full py-4 text-lg font-bold shadow-lg tracking-wide rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:opacity-90 transition-opacity"
       >
         CLAIM COUPON
       </button>
 
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center sm:items-center p-0 sm:p-4 backdrop-blur-xs">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 space-y-5 animate-in slide-in-from-bottom duration-200 border border-gray-100 shadow-2xl">
+        <div className="public-claim-backdrop fixed inset-0 z-50 bg-black/60 flex items-end justify-center sm:items-center p-0 sm:p-4 backdrop-blur-xs">
+          <div className="public-claim-sheet bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 space-y-5 animate-in slide-in-from-bottom duration-200 border border-gray-100 shadow-2xl">
             <div className="text-center space-y-1">
               <h3 className="text-xl font-bold text-gray-900">Redeem this coupon?</h3>
               <p className="text-xs text-gray-500">This action cannot be undone.</p>

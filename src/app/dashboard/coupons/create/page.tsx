@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createCoupon } from '@/app/actions/coupons';
+import { getCampaigns } from '@/app/actions/campaigns';
 import { validateCouponForm } from '@/lib/utils/validators';
 import { getTodayIST } from '@/lib/utils/formatters';
+import type { Campaign } from '@/lib/types';
 
 export default function CreateCouponPage() {
   const router = useRouter();
@@ -13,22 +16,25 @@ export default function CreateCouponPage() {
     customerName: '',
     mobileNumber: '',
     couponValue: '',
-    validFrom: '',
+    validFrom: getTodayIST(),
     validUntil: '',
+    campaignId: '',
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const submitLock = useRef(false);
 
   useEffect(() => {
-    // Set default Valid From to today IST
-    setFormData(prev => ({ ...prev, validFrom: getTodayIST() }));
+    getCampaigns().then(setCampaigns).catch(() => setCampaigns([]));
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const safeValue = name === 'mobileNumber' ? value.replace(/\D/g, '').slice(0, 10) : value;
+    setFormData(prev => ({ ...prev, [name]: safeValue }));
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -40,6 +46,7 @@ export default function CreateCouponPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitLock.current) return;
     setSubmitError('');
     
     // Validate form
@@ -49,6 +56,7 @@ export default function CreateCouponPage() {
       return;
     }
 
+    submitLock.current = true;
     setIsSubmitting(true);
     
     try {
@@ -58,6 +66,7 @@ export default function CreateCouponPage() {
         coupon_value: Number(formData.couponValue),
         valid_from: formData.validFrom,
         valid_until: formData.validUntil,
+        campaign_id: formData.campaignId || null,
       };
       
       const res = await createCoupon(payload);
@@ -65,20 +74,24 @@ export default function CreateCouponPage() {
         router.push(`/dashboard/coupons/${res.data.coupon_code}/success`);
       } else {
         setSubmitError(res.error || res.message || 'Failed to create coupon. Please try again.');
+        submitLock.current = false;
         setIsSubmitting(false);
       }
     } catch (err: any) {
       setSubmitError(err.message || 'An error occurred while creating the coupon.');
+      submitLock.current = false;
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
+    <div className="create-coupon-page max-w-xl mx-auto space-y-6">
       <div className="page-header flex items-center justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#3E2723]">Create Gift Coupon</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Generate an exclusive coupon for Akshaya Jewellers</p>
+          <Link href="/dashboard" className="mobile-form-back md:hidden" aria-label="Back to dashboard">←</Link>
+          <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#3E2723]"><span className="hidden-mobile">Create Gift Coupon</span><span className="hidden-desktop">Create Coupon</span></h1>
+          <p className="create-subtitle-desktop text-xs text-gray-500 mt-0.5 hidden-mobile">Generate an exclusive coupon for Akshaya Jewellers</p>
+          <p className="create-subtitle-mobile text-sm text-gray-500 mt-1 hidden-desktop">Enter customer and validity details.</p>
         </div>
       </div>
 
@@ -110,40 +123,56 @@ export default function CreateCouponPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="mobileNumber">
-              Customer Mobile Number (🇮🇳 +91) <span className="text-red-500">*</span>
+              <span className="hidden-mobile">Customer Mobile Number (🇮🇳 +91)</span><span className="hidden-desktop">Mobile Number</span> <span className="text-red-500">*</span>
             </label>
-            <input
-              type="tel"
-              id="mobileNumber"
-              name="mobileNumber"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className="form-input"
-              value={formData.mobileNumber}
-              onChange={handleChange}
-              placeholder="9876543210"
-              required
-            />
+            <div className="mobile-number-field">
+              <span className="mobile-number-prefix" aria-hidden="true">🇮🇳 +91</span>
+              <input
+                type="tel"
+                id="mobileNumber"
+                name="mobileNumber"
+                inputMode="numeric"
+                pattern="[0-9]{10}"
+                maxLength={10}
+                className="form-input"
+                value={formData.mobileNumber}
+                onChange={handleChange}
+                placeholder="98765 43210"
+                autoComplete="tel-national"
+                required
+              />
+            </div>
             {errors.mobileNumber && <p className="text-xs text-red-600 mt-1 font-medium">{errors.mobileNumber}</p>}
           </div>
 
-          <div className="form-group">
+          <div className="form-group create-campaign-field">
             <label className="form-label" htmlFor="couponValue">
               Coupon Value (₹) <span className="text-red-500">*</span>
             </label>
-            <input
-              type="number"
-              id="couponValue"
-              name="couponValue"
-              inputMode="numeric"
-              className="form-input"
-              value={formData.couponValue}
-              onChange={handleChange}
-              min="1"
-              placeholder="e.g. 11111"
-              required
-            />
+            <div className="coupon-value-field">
+              <span className="coupon-value-prefix" aria-hidden="true">₹</span>
+              <input
+                type="number"
+                id="couponValue"
+                name="couponValue"
+                inputMode="numeric"
+                className="form-input"
+                value={formData.couponValue}
+                onChange={handleChange}
+                min="1"
+                placeholder="11,111"
+                required
+              />
+            </div>
             {errors.couponValue && <p className="text-xs text-red-600 mt-1 font-medium">{errors.couponValue}</p>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="campaignId">Campaign</label>
+            <select id="campaignId" name="campaignId" className="form-input" value={formData.campaignId} onChange={handleChange}>
+              <option value="">No campaign</option>
+              {campaigns.map(campaign => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -178,10 +207,10 @@ export default function CreateCouponPage() {
             </div>
           </div>
 
-          <div className="pt-4">
+          <div className="create-submit-wrap pt-4">
             <button
               type="submit"
-              className="btn btn-primary btn-lg w-full font-bold text-base shadow-lg rounded-xl transition-all"
+              className="create-submit btn btn-primary btn-lg w-full font-bold text-base shadow-lg rounded-xl transition-all"
               disabled={isSubmitting}
             >
               {isSubmitting ? (

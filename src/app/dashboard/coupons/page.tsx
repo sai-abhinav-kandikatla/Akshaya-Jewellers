@@ -19,9 +19,14 @@ export default function CouponsListPage() {
   const [filterStatus, setFilterStatus] = useState('ALL');
   
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [campaignFilter, setCampaignFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [campaignId, setCampaignId] = useState('');
+  const [valueMin, setValueMin] = useState('');
+  const [valueMax, setValueMax] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [phoneFilter, setPhoneFilter] = useState('');
+  const [advancedDraft, setAdvancedDraft] = useState({ campaignId: '', dateFrom: '', dateTo: '', valueMin: '', valueMax: '', customer: '', phone: '' });
   
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -55,9 +60,13 @@ export default function CouponsListPage() {
       const filters = {
         search: debouncedSearch,
         status: filterStatus !== 'ALL' ? filterStatus.replace(' ', '_') : undefined,
-        campaign_id: campaignFilter || undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
+        campaign_id: campaignId || undefined,
+        value_min: valueMin ? Number(valueMin) : undefined,
+        value_max: valueMax ? Number(valueMax) : undefined,
+        customer: customerFilter.trim() || undefined,
+        phone: phoneFilter.trim() || undefined,
         page,
         limit: ITEMS_PER_PAGE
       };
@@ -70,7 +79,7 @@ export default function CouponsListPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearch, filterStatus, campaignFilter, dateFrom, dateTo, page]);
+  }, [debouncedSearch, filterStatus, dateFrom, dateTo, campaignId, valueMin, valueMax, customerFilter, phoneFilter, page]);
 
   useEffect(() => {
     loadCoupons();
@@ -97,11 +106,78 @@ export default function CouponsListPage() {
   const clearFilters = () => {
     setSearch('');
     setFilterStatus('ALL');
-    setCampaignFilter('');
     setDateFrom('');
     setDateTo('');
+    setCampaignId('');
+    setValueMin('');
+    setValueMax('');
+    setCustomerFilter('');
+    setPhoneFilter('');
+    setAdvancedDraft({ campaignId: '', dateFrom: '', dateTo: '', valueMin: '', valueMax: '', customer: '', phone: '' });
     setPage(1);
   };
+
+  const openAdvancedFilters = () => {
+    setAdvancedDraft({ campaignId, dateFrom, dateTo, valueMin, valueMax, customer: customerFilter, phone: phoneFilter });
+    setShowAdvancedFilters(true);
+  };
+
+  const applyAdvancedFilters = () => {
+    setCampaignId(advancedDraft.campaignId);
+    setDateFrom(advancedDraft.dateFrom);
+    setDateTo(advancedDraft.dateTo);
+    setValueMin(advancedDraft.valueMin);
+    setValueMax(advancedDraft.valueMax);
+    setCustomerFilter(advancedDraft.customer);
+    setPhoneFilter(advancedDraft.phone);
+    setPage(1);
+    setShowAdvancedFilters(false);
+  };
+
+  const updateDateDraft = (field: 'dateFrom' | 'dateTo', value: string) => {
+    setAdvancedDraft(previous => ({ ...previous, [field]: value }));
+    if (window.matchMedia('(min-width: 768px)').matches) {
+      if (field === 'dateFrom') setDateFrom(value);
+      else setDateTo(value);
+      setPage(1);
+    }
+  };
+
+  const advancedFilterFields = (
+    <>
+      <div className="advanced-campaign-field">
+        <label className="form-label" htmlFor="filterCampaign">Campaign</label>
+        <select id="filterCampaign" className="form-input" value={advancedDraft.campaignId} onChange={e => setAdvancedDraft({ ...advancedDraft, campaignId: e.target.value })}>
+          <option value="">All campaigns</option>
+          {campaigns.map(campaign => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+        </select>
+      </div>
+      <div className="advanced-date-field">
+        <label className="form-label" htmlFor="filterDateFrom">Valid from</label>
+        <input id="filterDateFrom" type="date" className="form-input" value={advancedDraft.dateFrom} onChange={e => updateDateDraft('dateFrom', e.target.value)} />
+      </div>
+      <div className="advanced-date-field">
+        <label className="form-label" htmlFor="filterDateTo">Valid until</label>
+        <input id="filterDateTo" type="date" className="form-input" value={advancedDraft.dateTo} onChange={e => updateDateDraft('dateTo', e.target.value)} />
+      </div>
+      <div className="advanced-value-field">
+        <label className="form-label" htmlFor="filterValueMin">Minimum value (₹)</label>
+        <input id="filterValueMin" type="number" inputMode="decimal" min="0" className="form-input" value={advancedDraft.valueMin} onChange={e => setAdvancedDraft({ ...advancedDraft, valueMin: e.target.value })} placeholder="Any" />
+      </div>
+      <div className="advanced-value-field">
+        <label className="form-label" htmlFor="filterValueMax">Maximum value (₹)</label>
+        <input id="filterValueMax" type="number" inputMode="decimal" min="0" className="form-input" value={advancedDraft.valueMax} onChange={e => setAdvancedDraft({ ...advancedDraft, valueMax: e.target.value })} placeholder="Any" />
+      </div>
+      <div className="advanced-customer-field">
+        <label className="form-label" htmlFor="filterCustomer">Customer</label>
+        <input id="filterCustomer" type="search" className="form-input" value={advancedDraft.customer} onChange={e => setAdvancedDraft({ ...advancedDraft, customer: e.target.value })} placeholder="Customer name" />
+      </div>
+      <div className="advanced-phone-field">
+        <label className="form-label" htmlFor="filterPhone">Phone</label>
+        <input id="filterPhone" type="tel" inputMode="numeric" className="form-input" value={advancedDraft.phone} onChange={e => setAdvancedDraft({ ...advancedDraft, phone: e.target.value })} placeholder="Mobile number" />
+      </div>
+    </>
+  );
 
   return (
     <div className="dashboard-page">
@@ -127,7 +203,7 @@ export default function CouponsListPage() {
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div className="card-body">
-          <div className="search-input-wrapper" style={{ position: 'relative', marginBottom: '1rem' }}>
+            <div className="search-input-wrapper coupon-list-search" style={{ position: 'relative', marginBottom: '1rem' }}>
             <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}>
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -136,13 +212,13 @@ export default function CouponsListPage() {
               type="text"
               className="search-input form-input"
               style={{ paddingLeft: '2.5rem' }}
-              placeholder="Search coupon, customer, or phone..."
+              placeholder="Search code, customer or phone"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+          <div className="coupon-status-chips" style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
             {statuses.map(status => (
               <button
                 key={status}
@@ -167,36 +243,36 @@ export default function CouponsListPage() {
           <div style={{ marginBottom: '1rem' }}>
             <button 
               type="button" 
-              className="btn btn-ghost btn-sm" 
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="btn btn-ghost btn-sm coupon-advanced-trigger"
+              onClick={() => showAdvancedFilters ? setShowAdvancedFilters(false) : openAdvancedFilters()}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
                 <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
               </svg>
-              {showAdvancedFilters ? 'Hide Advanced Filters' : 'Show Advanced Filters'}
+              <span className="advanced-toggle-desktop">{showAdvancedFilters ? 'Hide Advanced Filters' : 'Show Advanced Filters'}</span>
+              <span className="advanced-toggle-mobile">{showAdvancedFilters ? 'Hide filters' : 'Advanced filters'}</span>
             </button>
           </div>
 
           {showAdvancedFilters && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', padding: '1rem', background: '#fdfbf7', borderRadius: '8px', border: '1px solid #f3e8c9' }}>
-              <div>
-                <label className="form-label" style={{ fontSize: '0.875rem' }}>Campaign</label>
-                <select className="form-input" value={campaignFilter} onChange={e => { setCampaignFilter(e.target.value); setPage(1); }}>
-                  <option value="">All Campaigns</option>
-                  {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '0.875rem' }}>Valid From (After)</label>
-                <input type="date" className="form-input" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(1); }} />
-              </div>
-              <div>
-                <label className="form-label" style={{ fontSize: '0.875rem' }}>Valid Until (Before)</label>
-                <input type="date" className="form-input" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(1); }} />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                <button type="button" className="btn btn-secondary" onClick={clearFilters} style={{ width: '100%' }}>Clear Filters</button>
-              </div>
+            <div className="coupon-advanced-backdrop" onClick={() => setShowAdvancedFilters(false)}>
+              <section className="coupon-advanced-sheet" aria-label="Advanced coupon filters" onClick={event => event.stopPropagation()}>
+                <div className="sheet-handle md:hidden" />
+                <div className="coupon-advanced-heading">
+                  <h2>Advanced filters</h2>
+                  <button type="button" className="md:hidden" aria-label="Close filters" onClick={() => setShowAdvancedFilters(false)}>×</button>
+                </div>
+                <div className="coupon-advanced-fields">
+                  {advancedFilterFields}
+                  <div className="advanced-clear-desktop">
+                    <button type="button" className="btn btn-secondary" onClick={clearFilters} style={{ width: '100%' }}>Clear Filters</button>
+                  </div>
+                </div>
+                <div className="advanced-filter-actions advanced-filter-actions-mobile">
+                  <button type="button" className="btn btn-secondary" onClick={clearFilters}>Clear</button>
+                  <button type="button" className="btn btn-primary" onClick={applyAdvancedFilters}>Apply filters</button>
+                </div>
+              </section>
             </div>
           )}
         </div>
@@ -223,19 +299,19 @@ export default function CouponsListPage() {
             {coupons.map(coupon => {
               const status = computeDisplayStatus(coupon);
               return (
-                <div key={coupon.id} className="card p-4 rounded-xl border border-gray-200 shadow-sm bg-white">
+              <Link key={coupon.id} href={`/dashboard/coupons/${coupon.coupon_code}`} className="card coupon-mobile-card">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <Link href={`/dashboard/coupons/${coupon.coupon_code}`} className="font-bold text-[#b8860b] text-base">
+                      <span className="coupon-mobile-code font-bold text-[#b8860b]">
                         {coupon.coupon_code}
-                      </Link>
-                      <p className="text-sm font-semibold text-gray-900 mt-0.5">{coupon.customer_name}</p>
+                      </span>
+                      <p className="coupon-mobile-details font-semibold text-gray-900 mt-1">{coupon.customer_name}</p>
                     </div>
                     <span className={`badge badge-${status.toLowerCase().replace('_', '-')}`}>
                       {status}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-xs text-gray-600 mb-3 pt-2 border-t border-gray-100">
+                  <div className="coupon-mobile-details flex justify-between items-center text-gray-600 mb-3 pt-3 border-t border-gray-100">
                     <div>
                       <span className="text-gray-400 block text-[10px] uppercase">Phone</span>
                       <span className="font-medium text-gray-800">{coupon.phone_number}</span>
@@ -245,15 +321,12 @@ export default function CouponsListPage() {
                       <span className="font-bold text-[#b8860b] text-sm">{formatCurrency(coupon.value)}</span>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
+                  <div className="coupon-mobile-validity flex justify-between items-center text-gray-500 mb-3">
                     <span>Valid: {formatIndianDate(coupon.valid_from)} &rarr; {formatIndianDate(coupon.valid_until)}</span>
                   </div>
-                  <div className="flex gap-2 pt-2 border-t border-gray-100">
-                    <Link href={`/dashboard/coupons/${coupon.coupon_code}`} className="btn btn-secondary btn-sm flex-1 text-center text-xs py-2">
-                      View Details
-                    </Link>
-                  </div>
-                </div>
+                  {coupon.campaign_id && <p className="coupon-mobile-validity text-gray-500">{campaigns.find(c => c.id === coupon.campaign_id)?.name || 'Campaign'}</p>}
+                  <span className="coupon-card-open-link">View details <span aria-hidden="true">→</span></span>
+              </Link>
               );
             })}
           </div>

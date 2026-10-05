@@ -7,9 +7,11 @@ import { formatDateIndian } from '@/lib/utils/formatters';
 
 export interface ExcelSyncResult {
   status: 'SYNCED' | 'PENDING' | 'ERROR';
+  configured: boolean;
   lastSyncAt: string | null;
   pendingCount: number;
   totalSynced: number;
+  errorCount: number;
   message?: string;
 }
 
@@ -39,7 +41,19 @@ export async function syncCouponToExcel(coupon: Coupon): Promise<ApiResponse> {
       'Claimed By': coupon.claimed_by || '—',
     };
 
-    if (msGraphToken && excelFileId) {
+    if (!msGraphToken || !excelFileId) {
+      await supabase
+        .from('coupons')
+        .update({ excel_sync_status: 'PENDING', excel_synced_at: null })
+        .eq('id', coupon.id);
+
+      return {
+        success: false,
+        error: 'Microsoft Excel sync is pending because Graph credentials are not configured.',
+      };
+    }
+
+    {
       // Execute live Microsoft Graph API Excel workbook row insert/update
       const graphUrl = `https://graph.microsoft.com/v1.0/me/drive/items/${excelFileId}/workbook/tables/CouponsTable/rows/add`;
       const res = await fetch(graphUrl, {
@@ -76,24 +90,18 @@ export async function syncCouponToExcel(coupon: Coupon): Promise<ApiResponse> {
 
         return { success: true, message: 'Synchronized live to Microsoft Excel Workbook.' };
       } else {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => null) as { error?: { message?: string } } | null;
         console.warn('Microsoft Graph Excel sync error:', errorData);
+        await supabase
+          .from('coupons')
+          .update({ excel_sync_status: 'ERROR', excel_synced_at: null })
+          .eq('id', coupon.id);
+        return {
+          success: false,
+          error: errorData?.error?.message || `Microsoft Excel sync failed (${res.status}).`,
+        };
       }
     }
-
-    // Record as synced in local DB reporting layer if no external Graph token provided
-    await supabase
-      .from('coupons')
-      .update({
-        excel_sync_status: 'SYNCED',
-        excel_synced_at: new Date().toISOString(),
-      } as any)
-      .eq('id', coupon.id);
-
-    return {
-      success: true,
-      message: 'Excel Reporting Layer synchronized successfully.',
-    };
   } catch (err: any) {
     console.error('syncCouponToExcel exception:', err);
     return { success: false, error: err.message || 'Failed to sync to Excel.' };
@@ -110,35 +118,47 @@ export async function getExcelSyncStatus(): Promise<ExcelSyncResult> {
 
     if (error || !coupons) {
       return {
-        status: 'SYNCED',
-        lastSyncAt: new Date().toISOString(),
+        status: 'ERROR',
+        configured: Boolean(process.env.MICROSOFT_GRAPH_ACCESS_TOKEN && process.env.ONEDRIVE_EXCEL_FILE_ID),
+        lastSyncAt: null,
         pendingCount: 0,
         totalSynced: 0,
+        errorCount: 0,
+        message: 'Unable to read Excel sync status.',
       };
     }
 
-    const totalSynced = coupons.length;
-    const pendingCount = coupons.filter((c: any) => c.excel_sync_status === 'PENDING' || c.excel_sync_status === 'ERROR').length;
+    const totalSynced = coupons.filter((c: any) => c.excel_sync_status === 'SYNCED').length;
+    const pendingCount = coupons.filter((c: any) => c.excel_sync_status === 'PENDING').length;
+    const errorCount = coupons.filter((c: any) => c.excel_sync_status === 'ERROR').length;
     
     // Find latest synced at timestamp
     const latestSync = coupons
-      .map((c: any) => c.excel_synced_at || c.created_at)
+      .map((c: any) => c.excel_synced_at)
       .filter(Boolean)
       .sort()
       .pop();
 
     return {
-      status: pendingCount > 0 ? 'PENDING' : 'SYNCED',
-      lastSyncAt: latestSync || new Date().toISOString(),
+      status: errorCount > 0 ? 'ERROR' : pendingCount > 0 || !process.env.MICROSOFT_GRAPH_ACCESS_TOKEN || !process.env.ONEDRIVE_EXCEL_FILE_ID ? 'PENDING' : 'SYNCED',
+      configured: Boolean(process.env.MICROSOFT_GRAPH_ACCESS_TOKEN && process.env.ONEDRIVE_EXCEL_FILE_ID),
+      lastSyncAt: latestSync || null,
       pendingCount,
       totalSynced,
+      errorCount,
+      message: !process.env.MICROSOFT_GRAPH_ACCESS_TOKEN || !process.env.ONEDRIVE_EXCEL_FILE_ID
+        ? 'Microsoft Graph credentials are not configured.'
+        : undefined,
     };
   } catch (err) {
     return {
-      status: 'SYNCED',
-      lastSyncAt: new Date().toISOString(),
+      status: 'ERROR',
+      configured: Boolean(process.env.MICROSOFT_GRAPH_ACCESS_TOKEN && process.env.ONEDRIVE_EXCEL_FILE_ID),
+      lastSyncAt: null,
       pendingCount: 0,
       totalSynced: 0,
+      errorCount: 0,
+      message: 'Unable to read Excel sync status.',
     };
   }
 }
@@ -149,15 +169,29 @@ export async function getExcelSyncStatus(): Promise<ExcelSyncResult> {
 export async function triggerExcelSyncNow(): Promise<ApiResponse> {
   try {
     const supabase = createAdminClient();
-    const { data: coupons } = await supabase.from('coupons').select('*');
+    const { data: coupons, error: queryError } = await supabase
+      .from('coupons')
+      .select('*')
+      .in('excel_sync_status', ['PENDING', 'ERROR']);
 
-    if (coupons && coupons.length > 0) {
-      for (const coupon of coupons) {
-        await syncCouponToExcel(coupon);
-      }
+    if (queryError || !coupons) {
+      return { success: false, error: queryError?.message || 'Failed to load pending coupons.' };
     }
 
-    return { success: true, message: 'All coupons successfully synchronized to Excel Workbook!' };
+    if (!coupons.length) {
+      return { success: true, message: 'No pending coupons need Excel sync.' };
+    }
+
+    const results = await Promise.all(coupons.map((coupon) => syncCouponToExcel(coupon)));
+    const failures = results.filter((result) => !result.success);
+    if (failures.length) {
+      return {
+        success: false,
+        error: `${failures.length} coupon${failures.length === 1 ? '' : 's'} could not be synced. ${failures[0].error || ''}`.trim(),
+      };
+    }
+
+    return { success: true, message: `${results.length} pending coupon${results.length === 1 ? '' : 's'} synced to Excel.` };
   } catch (err: any) {
     return { success: false, error: err.message || 'Manual Excel sync failed.' };
   }

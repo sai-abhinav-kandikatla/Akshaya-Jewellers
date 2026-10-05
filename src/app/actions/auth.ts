@@ -6,11 +6,14 @@ import { createAdminSessionToken } from '@/lib/auth/adminSession';
 
 export async function adminLoginAction(usernameInput: string, passwordInput: string) {
   try {
-    const adminUsername = process.env.ADMIN_USERNAME || process.env.NEXT_PUBLIC_ADMIN_USERNAME;
-    const adminPassword = process.env.ADMIN_PASSWORD || process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+    const adminUsername = process.env.ADMIN_USERNAME;
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
     if (!adminUsername || !adminPassword) {
-      return { success: false, error: 'Admin login is not configured on the server.' };
+      return {
+        success: false,
+        error: 'Admin login is not configured. Set ADMIN_USERNAME and ADMIN_PASSWORD as server-side environment variables, then redeploy.',
+      };
     }
 
     const cleanInput = usernameInput.trim();
@@ -26,7 +29,10 @@ export async function adminLoginAction(usernameInput: string, passwordInput: str
 
     const sessionToken = await createAdminSessionToken();
     if (!sessionToken) {
-      return { success: false, error: 'Admin session signing is not configured on the server.' };
+      return {
+        success: false,
+        error: 'Admin session signing is not configured. Set ADMIN_SESSION_SECRET as a server-side environment variable, then redeploy.',
+      };
     }
 
     const email = 'akshaya_jewellers@akshayajewellers.com';
