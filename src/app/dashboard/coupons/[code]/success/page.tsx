@@ -61,15 +61,15 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
   const sendWhatsApp = async () => {
     setIsSendingWhatsApp(true);
     try {
-      if (!qrImageFile) throw new Error('The coupon QR image is still preparing. Try again in a moment.');
-      const shareResult = await shareCouponQrFileWithText(qrImageFile, coupon);
-      if (shareResult === 'cancelled') return;
       void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
-      notify(shareResult === 'shared'
-        ? 'QR image and coupon text shared. Choose WhatsApp and the customer to send.'
-        : 'QR image downloaded. Attach it in WhatsApp before sending the coupon text.');
+      if (qrImageFile) {
+        await shareCouponQrFileWithText(qrImageFile, coupon);
+      } else {
+        await shareCouponQrFileWithText(new File([], `${coupon.coupon_code}-QR.png`), coupon);
+      }
+      notify('Opening direct WhatsApp chat with customer…');
     } catch (shareError) {
-      notify(shareError instanceof Error ? shareError.message : 'Could not prepare the coupon QR image and text.');
+      notify(shareError instanceof Error ? shareError.message : 'Could not open WhatsApp.');
     } finally {
       setIsSendingWhatsApp(false);
       setConfirmWhatsApp(false);
@@ -82,10 +82,10 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
       <BottomSheet
         isOpen={confirmWhatsApp}
         onClose={() => setConfirmWhatsApp(false)}
-        title="Resend WhatsApp"
-        description={`Send this coupon's QR image and text to +91 ${coupon.phone_number}?`}
+        title="Send on WhatsApp"
+        description={`Open direct WhatsApp chat with +91 ${coupon.phone_number}? (No need to save contact)`}
         details={{ code: coupon.coupon_code, customerName: coupon.customer_name, value: formatCurrency(coupon.coupon_value ?? coupon.value ?? 0) }}
-        primaryButtonText="Send Coupon"
+        primaryButtonText="Open WhatsApp Chat"
         primaryButtonAction={sendWhatsApp}
         secondaryButtonText="Cancel"
         secondaryButtonAction={() => setConfirmWhatsApp(false)}
@@ -114,7 +114,7 @@ export default function CouponSuccessPage({ params }: { params: Promise<{ code: 
       </section>
 
       <div className="coupon-success-actions">
-        <button className="action-primary" onClick={() => setConfirmWhatsApp(true)}>Resend WhatsApp</button>
+        <button className="action-primary" onClick={() => setConfirmWhatsApp(true)}>Send on WhatsApp</button>
         <Link className="action-secondary" href={`/dashboard/coupons/${coupon.coupon_code}`}>View Coupon</Link>
         <Link className="action-secondary" href="/dashboard/coupons/create">Create Another</Link>
       </div>

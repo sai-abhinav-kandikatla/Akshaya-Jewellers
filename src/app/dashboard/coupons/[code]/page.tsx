@@ -68,15 +68,15 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
     if (action === 'WHATSAPP') {
       setIsProcessing(true);
       try {
-        if (!qrImageFile) throw new Error('The coupon QR image is still preparing. Try again in a moment.');
-        const shareResult = await shareCouponQrFileWithText(qrImageFile, coupon);
-        if (shareResult === 'cancelled') return;
         void logAuditEvent('WHATSAPP_PREPARED', coupon.id, coupon.campaign_id || undefined, { phone_number: coupon.phone_number }).catch(() => {});
-        notify(shareResult === 'shared'
-          ? 'QR image and coupon text shared. Choose WhatsApp and the customer to send.'
-          : 'QR image downloaded. Attach it in WhatsApp before sending the coupon text.');
+        if (qrImageFile) {
+          await shareCouponQrFileWithText(qrImageFile, coupon);
+        } else {
+          await shareCouponQrFileWithText(new File([], `${coupon.coupon_code}-QR.png`), coupon);
+        }
+        notify('Opening direct WhatsApp chat with customer…');
       } catch (shareError) {
-        notify(shareError instanceof Error ? shareError.message : 'Could not prepare the coupon QR image and text.');
+        notify(shareError instanceof Error ? shareError.message : 'Could not open WhatsApp.');
       } finally {
         setIsProcessing(false);
         setSheetAction(null);
@@ -118,7 +118,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
   const sheetCopy = {
     CLAIM: ['Claim Coupon', 'Are you sure you want to claim this coupon?', 'Yes, Claim'],
     CANCEL: ['Cancel Coupon', 'Are you sure you want to cancel this coupon?', 'Yes, Cancel'],
-    WHATSAPP: ['Resend WhatsApp', `Send this coupon's QR image and text to +91 ${coupon.phone_number}?`, 'Send Coupon'],
+    WHATSAPP: ['Send on WhatsApp', `Open direct WhatsApp chat with +91 ${coupon.phone_number}? (No need to save contact)`, 'Open WhatsApp Chat'],
   } as const;
   const activeCopy = sheetAction ? sheetCopy[sheetAction] : null;
 
@@ -161,7 +161,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
 
       <section className="coupon-detail-actions" aria-label="Coupon actions">
         {status === 'ACTIVE' && <button className="action-primary" onClick={() => setSheetAction('CLAIM')}>Claim Coupon</button>}
-        {canResend && <button className="action-secondary" onClick={() => setSheetAction('WHATSAPP')}>Resend WhatsApp</button>}
+        {canResend && <button className="action-secondary" onClick={() => setSheetAction('WHATSAPP')}>Send on WhatsApp</button>}
         {canResend && <button className="action-secondary" onClick={() => setSheetAction('CANCEL')}>Cancel Coupon</button>}
       </section>
     </div>

@@ -35,6 +35,18 @@ export function formatVoucherDate(dateStr: string): string {
   }
 }
 
+export function getWhatsAppRecipientPhone(rawPhone: string): string {
+  if (!rawPhone) return '';
+  let digits = rawPhone.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  if (digits.length === 10) {
+    digits = '91' + digits;
+  }
+  return digits;
+}
+
 /**
  * Generate the exact WhatsApp message text for a coupon
  */
@@ -44,6 +56,11 @@ export function generateWhatsAppMessage(data: any): string {
   const code = data.couponCode || data.coupon_code || '';
   const from = data.validFrom || data.valid_from || '';
   const until = data.validUntil || data.valid_until || '';
+
+  const origin = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'https://akshaya-jewellers-mncl.vercel.app';
+  const verifyLink = code ? `${origin}/verify/${code}` : '';
 
   return `✨ *AKSHAYA JEWELLERS* ✨
 *Exclusive Gift Coupon*
@@ -56,28 +73,27 @@ Warm greetings from Akshaya Jewellers! 🌟
 • Unique Coupon ID: *${code}*
 • Coupon Value: *${formatCurrency(val)}*
 • Valid From: ${formatVoucherDate(from)}
-• Valid Until: ${formatVoucherDate(until)}
+• Valid Until: ${formatVoucherDate(until)}${verifyLink ? `\n• View Coupon & QR: ${verifyLink}` : ''}
 
-Please present this QR code or Unique Coupon ID (*${code}*) at our store to redeem your gift.
+Please present this Unique Coupon ID (*${code}*) or the QR link at our store to redeem your gift.
 
 Thank you for choosing Akshaya Jewellers! 💍✨`;
 }
 
 /**
- * Generate a WhatsApp wa.me URL with pre-filled message
+ * Generate direct WhatsApp URL that immediately opens 1-on-1 chat with customer number.
+ * Works even when customer number is NOT saved in phone contacts!
  */
 export function generateWhatsAppURL(data: any): string {
   const message = generateWhatsAppMessage(data);
   const rawPhone = data.phoneNumber || data.phone_number || '';
-  
-  // Normalize phone number to international format
-  let phone = rawPhone.replace(/\D/g, '');
-  if (phone.length === 10) {
-    phone = '91' + phone; // Add India country code
-  }
-  
+  const phone = getWhatsAppRecipientPhone(rawPhone);
   const encodedMessage = encodeURIComponent(message);
-  return `https://wa.me/${phone}?text=${encodedMessage}`;
+  
+  if (phone) {
+    return `https://api.whatsapp.com/send?phone=${phone}&text=${encodedMessage}`;
+  }
+  return `https://api.whatsapp.com/send?text=${encodedMessage}`;
 }
 
 export type CouponShareResult = 'shared' | 'prepared' | 'cancelled';
@@ -242,31 +258,45 @@ export async function createCouponQrImageFile(svg: SVGSVGElement, couponOrCode: 
   }
 }
 
-function prepareWhatsAppFallback(imageFile: File, data: WhatsAppMessageData): CouponShareResult {
-  const imageUrl = URL.createObjectURL(imageFile);
-  const downloadLink = document.createElement('a');
-  downloadLink.href = imageUrl;
-  downloadLink.download = imageFile.name;
-  downloadLink.click();
-  window.setTimeout(() => URL.revokeObjectURL(imageUrl), 60_000);
-  window.open(generateWhatsAppURL(data), '_blank', 'noopener,noreferrer');
-  return 'prepared';
+export function downloadCouponQrImage(imageFile: File): void {
+  try {
+    const imageUrl = URL.createObjectURL(imageFile);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = imageUrl;
+    downloadLink.download = imageFile.name || 'Akshaya-Coupon-QR.png';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    window.setTimeout(() => URL.revokeObjectURL(imageUrl), 60_000);
+  } catch {
+    // Graceful fallback
+  }
 }
 
-/** Share the actual coupon QR image and its text, with a WhatsApp-link fallback. */
-export function shareCouponQrFileWithText(imageFile: File, data: WhatsAppMessageData): Promise<CouponShareResult> {
-  const message = generateWhatsAppMessage(data);
-
-  if (navigator.share && navigator.canShare?.({ files: [imageFile] })) {
-    return navigator.share({
-      files: [imageFile],
-      title: 'Akshaya Jewellers coupon',
-      text: message,
-    }).then(() => 'shared' as const).catch(error => {
-      if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') return 'cancelled';
-      return prepareWhatsAppFallback(imageFile, data);
-    });
+/**
+ * Directly redirect to WhatsApp to open chat with customer number.
+ * No need to save customer number in phone contacts!
+ */
+export function redirectToWhatsAppDirect(data: any, imageFile?: File | null): void {
+  if (imageFile) {
+    downloadCouponQrImage(imageFile);
   }
+  const url = generateWhatsAppURL(data);
+  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) {
+    window.setTimeout(() => {
+      window.location.href = url;
+    }, 150);
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
 
-  return Promise.resolve(prepareWhatsAppFallback(imageFile, data));
+/**
+ * Open direct WhatsApp chat with the customer number.
+ * Saves the QR image to the device and opens the chat with the customer even if unsaved in contacts.
+ */
+export function shareCouponQrFileWithText(imageFile: File, data: WhatsAppMessageData): Promise<CouponShareResult> {
+  redirectToWhatsAppDirect(data, imageFile);
+  return Promise.resolve('prepared');
 }
