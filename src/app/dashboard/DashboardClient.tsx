@@ -25,31 +25,37 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
         </p>
       </div>
 
-      <nav className="dashboard-quick-actions" aria-label="Quick actions">
-        <Link href="/dashboard/coupons/create" className="dashboard-quick-action dashboard-quick-action--create">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path d="M12 4v16m8-8H4" /></svg>
-          <span>Create coupon</span>
-        </Link>
-        <Link href="/dashboard/verify" className="dashboard-quick-action dashboard-quick-action--verify">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden="true"><path d="m9 12 2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-          <span>Verify coupon</span>
-        </Link>
-        <Link href="/dashboard/coupons" className="dashboard-quick-action dashboard-quick-action--coupons">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
-          <span>All coupons</span>
-        </Link>
-      </nav>
-
       {/* Primary CTA (Master Prompt Section 9) */}
       <div className="w-full">
         <Link 
           href="/dashboard/coupons/create"
-          className="dashboard-create-btn btn btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 rounded-2xl shadow-md hover:shadow-lg transition-all"
+          className="dashboard-create-btn btn btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2 rounded-2xl shadow-md hover:shadow-lg transition-all bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
             <path d="M12 4v16m8-8H4" />
           </svg>
           <span>+ CREATE COUPON</span>
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Link 
+          href="/dashboard/verify" 
+          className="btn btn-secondary py-3 text-xs font-bold flex items-center justify-center gap-2 rounded-xl bg-white border border-[#D4AF37]/60 text-[#8b6508] shadow-xs hover:bg-gold-50"
+        >
+          <svg className="w-4 h-4 text-green-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Verify Coupon</span>
+        </Link>
+        <Link 
+          href="/dashboard/coupons" 
+          className="btn btn-secondary py-3 text-xs font-bold flex items-center justify-center gap-2 rounded-xl bg-white border border-gray-300 text-gray-700 shadow-xs hover:bg-gray-50"
+        >
+          <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span>All Coupons</span>
         </Link>
       </div>
 

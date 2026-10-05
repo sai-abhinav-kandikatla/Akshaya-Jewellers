@@ -260,6 +260,35 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
   }
 }
 
+.mobile-number-field,
+.coupon-value-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-number-prefix,
+.coupon-value-prefix {
+  position: absolute;
+  left: 14px;
+  z-index: 1;
+  color: #665348;
+  font-size: 15px;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mobile-number-field .form-input {
+  width: 100%;
+  padding-left: 88px;
+}
+
+.coupon-value-field .form-input {
+  width: 100%;
+  padding-left: 38px;
+}
+
 /* Badges */
 .badge {
   display: inline-block;
@@ -1366,7 +1395,7 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
   .dashboard-quick-action--create { color: #3e2723; background: linear-gradient(145deg, #efd574, #c49414); }
   .dashboard-quick-action--verify { background: #2e7d32; }
   .dashboard-quick-action--coupons { background: #6d4c41; }
-  .dashboard-create-btn { display: none !important; }
+  .dashboard-create-btn { display: flex !important; }
   .dashboard-total-card { min-height: 92px; padding: 17px 19px; border-radius: 16px; }
   .dashboard-total-card > div:first-child p:last-child { font-size: 31px; }
   .dashboard-total-value-desktop { display: none; }
@@ -1408,7 +1437,6 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
   .btn-lg { min-height: 56px; font-size: 16px; }
 
   .create-coupon-page { max-width: 100%; gap: 12px; }
-  .create-coupon-page { padding-bottom: 74px; }
   .create-coupon-page > :not(:first-child) { margin-block-start: 12px; }
   .create-coupon-page .page-header { margin-bottom: 0; }
   .create-coupon-page .page-header > div { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; column-gap: 4px; }
@@ -1420,11 +1448,9 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
   .create-coupon-page .form-group { margin: 0; }
   .create-coupon-value-field { display: block; }
   .create-coupon-page .create-submit-wrap {
-    position: fixed;
-    inset: auto 0 calc(72px + env(safe-area-inset-bottom, 0px));
-    z-index: 40;
-    padding: 10px 16px 12px;
-    background: linear-gradient(to top, #f8f6f1 78%, rgba(248, 246, 241, 0));
+    position: static;
+    padding: 12px 0 0;
+    background: transparent;
   }
   .create-coupon-page .create-submit { width: 100%; box-shadow: 0 7px 18px rgba(126, 91, 8, 0.2); }
   .create-coupon-page .create-submit-wrap + * { margin-bottom: 0; }
@@ -1571,7 +1597,7 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
   .coupon-detail-page .coupon-detail-card { border-radius: 18px; }
   .coupon-detail-page .coupon-qr svg,
   .coupon-success-page .coupon-qr svg { width: 220px; height: 220px; }
-  .coupon-detail-page .coupon-action-primary { position: sticky; bottom: calc(82px + env(safe-area-inset-bottom, 0px)); z-index: 30; box-shadow: 0 5px 16px rgba(120, 89, 14, 0.22); }
+  .coupon-detail-page .coupon-action-primary { position: static; box-shadow: 0 5px 16px rgba(120, 89, 14, 0.22); }
   .coupon-success-page { padding-bottom: 16px; }
   .coupon-success-page > :not(:first-child) { margin-block-start: 16px; }
   .coupon-success-page .coupon-success-code { font-size: 23px; overflow-wrap: anywhere; }

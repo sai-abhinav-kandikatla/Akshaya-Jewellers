@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { getCouponByCode, claimCoupon, cancelCoupon } from '@/app/actions/coupons';
 import { getCampaignById } from '@/app/actions/campaigns';

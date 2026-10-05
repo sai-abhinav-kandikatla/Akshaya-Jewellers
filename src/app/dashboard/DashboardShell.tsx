@@ -49,49 +49,25 @@ export default function DashboardShell({
 
   return (
     <div className="dashboard-layout min-h-screen bg-gray-50 flex flex-col">
+      {/* Mobile Top Header (Fixed at Top) */}
       <header className="dashboard-mobile-header md:hidden">
         <div className="mobile-header-row">
           <Link href="/dashboard" className="mobile-brand" aria-label="Akshaya Jewellers dashboard">
-            <img src="/logo.png" alt="" />
+            <img src="/logo.png" alt="Logo" />
             <span className="mobile-brand-name">Akshaya Jewellers</span>
           </Link>
           <div className="mobile-header-actions">
-            <Link href="/dashboard/settings" className="mobile-settings-link" aria-label="Settings" title="Settings">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1-2 2-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5v.2h-2.8V20a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.8.3l-.1.1-2-2 .1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H6v-2.8h.2a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.8l-.1-.1 2-2 .1.1a1.7 1.7 0 001.8.3 1.7 1.7 0 001-1.5V5h2.8v.2a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1 2 2-.1.1a1.7 1.7 0 00-.3 1.8 1.7 1.7 0 001.5 1h.2V14h-.2a1.7 1.7 0 00-1.5 1z" />
-              </svg>
-            </Link>
             <button onClick={handleLogout} className="mobile-logout" aria-label="Log out" title="Log out">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              Logout
             </button>
           </div>
         </div>
-        <nav className="mobile-primary-nav" aria-label="Primary navigation">
-          {mobilePrimaryActions.map((item) => {
-            const isActive = isRouteActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-label={item.label}
-                aria-current={isActive ? 'page' : undefined}
-                className={`mobile-primary-action mobile-primary-action--${item.theme}${isActive ? ' is-active' : ''}`}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                  {item.icon}
-                </svg>
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
       </header>
 
       <div className="flex flex-1">
+        {/* Desktop Sidebar */}
         <aside className="sidebar hidden md:flex flex-col fixed left-0 top-0 bottom-0 w-[260px] bg-[#3E2723] text-white z-40">
           <div className="p-6 flex flex-col items-center border-b border-[#5D4037]">
             <img src="/logo.png" alt="Logo" className="w-12 h-12 rounded-full object-cover mb-2 border border-[#D4AF37] shadow-md" />
@@ -124,10 +100,32 @@ export default function DashboardShell({
           </div>
         </aside>
 
-        <main className="main-content flex-1 md:ml-[260px] min-h-screen bg-gray-50 overflow-y-auto p-4 md:p-8">
+        {/* Main Content Area */}
+        <main className="main-content flex-1 md:ml-[260px] min-h-screen bg-gray-50 overflow-y-auto">
           {children}
         </main>
       </div>
+
+      {/* Mobile Fixed Bottom Navigation (Fixed at Bottom Sibling) */}
+      <nav className="mobile-primary-nav md:hidden" aria-label="Primary navigation">
+        {mobilePrimaryActions.map((item) => {
+          const isActive = isRouteActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
+              className={`mobile-primary-action mobile-primary-action--${item.theme}${isActive ? ' is-active' : ''}`}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} aria-hidden="true">
+                {item.icon}
+              </svg>
+              <span>{item.name}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

@@ -116,7 +116,7 @@ export default function QRScanner({ onScan, onClose }: QRScannerProps) {
         {/* Footer Guidance */}
         <div className="p-4 bg-[#fdfbf7] text-center space-y-2 border-t border-gray-100">
           <p className="text-xs text-gray-600 font-medium">
-            Point camera at the customer's phone or voucher QR code
+            Point camera at the customer&apos;s phone or voucher QR code
           </p>
           <button
             onClick={handleStopAndClose}

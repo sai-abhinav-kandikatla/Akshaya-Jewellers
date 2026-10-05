@@ -20,7 +20,7 @@ export default function VerifyCouponPage() {
   const [toast, setToast] = useState<{ id: number, message: string, type: 'success' | 'error' } | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.toUpperCase();
+    const val = e.target.value.toUpperCase();
     setCode(val);
   };
 

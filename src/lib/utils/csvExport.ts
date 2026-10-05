@@ -18,7 +18,7 @@ export function exportToCSV(
 ): void {
   let filename: string;
   let data: Record<string, any>[];
-  let columns: ExportColumn<any>[] | undefined = param3;
+  const columns: ExportColumn<any>[] | undefined = param3;
 
   if (typeof param1 === 'string' && Array.isArray(param2)) {
     filename = param1;
