@@ -73,7 +73,7 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
     setIsProcessing(true);
     try {
       const result = actionType === 'CLAIM'
-        ? await claimCoupon(coupon.id)
+        ? await claimCoupon(coupon.coupon_code)
         : await cancelCoupon(coupon.id);
 
       if (result.success) {

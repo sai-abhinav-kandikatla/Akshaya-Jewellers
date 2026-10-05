@@ -86,7 +86,7 @@ export default function VerifyCouponPage() {
     
     setIsClaiming(true);
     try {
-      const result = await claimCoupon(coupon.id);
+      const result = await claimCoupon(coupon.coupon_code);
       if (!result.success) {
         const latest = await getCouponByCode(coupon.coupon_code).catch(() => null);
         if (latest) setCoupon(latest);

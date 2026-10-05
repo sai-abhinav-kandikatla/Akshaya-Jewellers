@@ -276,13 +276,29 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
     if (!(await isAdminAuthenticated())) return { success: false, error: 'Unauthorized. Please sign in to redeem coupons.' };
     if (typeof identifier !== 'string' || !identifier.trim()) return { success: false, error: 'Enter a coupon code.' };
     const supabase = createAdminClient();
+    const search = identifier.trim();
+
+    // Coupon codes can be claimed directly by the atomic RPC, saving a lookup.
+    // UUID identifiers still need to be resolved to a code first.
+    if (!isUuid(search)) {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('claim_coupon', { p_coupon_code: search.toUpperCase() });
+      if (!rpcError) {
+        if (rpcResult?.success !== true) {
+          return { success: false, error: rpcResult?.message || 'The coupon claim was not confirmed. Please verify its status and try again.' };
+        }
+        return { success: true, message: 'Coupon redeemed successfully.' };
+      }
+      if (mutationFallbackUnavailable(rpcError)) {
+        console.error('claimCoupon RPC error:', rpcError);
+        return { success: false, error: 'Could not redeem this coupon. Please try again.' };
+      }
+    }
     
     // Query the UUID ID column only for UUID-shaped identifiers. Mixing it
     // into an OR filter with a coupon code makes Postgres cast AKS-… to UUID.
     const query = supabase
       .from('coupons')
       .select('*');
-    const search = identifier.trim();
     const { data: coupon, error: findError } = isUuid(search)
       ? await query.eq('id', search).maybeSingle()
       : await query.eq('coupon_code', search.toUpperCase()).maybeSingle();
@@ -313,20 +329,20 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
       return { success: false, error: 'This coupon has been cancelled and cannot be redeemed.' };
     }
 
-    // Try RPC claim_coupon first
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('claim_coupon', { p_coupon_code: coupon.coupon_code });
-    if (!rpcError) {
-      if (rpcResult?.success !== true) {
-        return { success: false, error: rpcResult?.message || 'The coupon claim was not confirmed. Please verify its status and try again.' };
+    // UUID callers need the coupon code before using the atomic RPC.
+    if (isUuid(search)) {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('claim_coupon', { p_coupon_code: coupon.coupon_code });
+      if (!rpcError) {
+        if (rpcResult?.success !== true) {
+          return { success: false, error: rpcResult?.message || 'The coupon claim was not confirmed. Please verify its status and try again.' };
+        }
+        // The atomic RPC returns success only after its update and audit insert commit.
+        return { success: true, message: 'Coupon redeemed successfully.' };
       }
-
-      // The atomic RPC returns success only after its update and audit insert commit.
-      return { success: true, message: 'Coupon redeemed successfully.' };
-    }
-
-    if (mutationFallbackUnavailable(rpcError)) {
-      console.error('claimCoupon RPC error:', rpcError);
-      return { success: false, error: 'Could not redeem this coupon. Please try again.' };
+      if (mutationFallbackUnavailable(rpcError)) {
+        console.error('claimCoupon RPC error:', rpcError);
+        return { success: false, error: 'Could not redeem this coupon. Please try again.' };
+      }
     }
 
     // Direct table update fallback
