@@ -38,13 +38,15 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
       const data = await getCouponByCode(code);
       if (data) {
         setCoupon(data);
+        const [campaign, history] = await Promise.all([
+          data.campaign_id ? getCampaignById(data.campaign_id) : Promise.resolve(null),
+          getCouponAuditHistory(data.id),
+        ]);
         if (data.campaign_id) {
-          const campaign = await getCampaignById(data.campaign_id);
           setCampaignName(campaign?.name || null);
         } else {
           setCampaignName(null);
         }
-        const history = await getCouponAuditHistory(data.id);
         setAuditHistory(history);
       } else {
         setError('Coupon not found');
@@ -67,27 +69,31 @@ export default function CouponDetailPage({ params }: { params: Promise<{ code: s
 
   const handleAction = async () => {
     if (!coupon || !modalState.type) return;
-    
+    const actionType = modalState.type;
     setIsProcessing(true);
     try {
-      if (modalState.type === 'CLAIM') {
-        const res = await claimCoupon(coupon.id);
-        if (res.success) {
-          showToast(res.message || '✓ Coupon redeemed successfully!', 'success');
-        } else {
-          showToast(res.error || 'Failed to redeem coupon', 'error');
-        }
-      } else if (modalState.type === 'CANCEL') {
-        const res = await cancelCoupon(coupon.id);
-        if (res.success) {
-          showToast(res.message || 'Coupon cancelled', 'success');
-        } else {
-          showToast(res.error || 'Failed to cancel coupon', 'error');
-        }
+      const result = actionType === 'CLAIM'
+        ? await claimCoupon(coupon.id)
+        : await cancelCoupon(coupon.id);
+
+      if (result.success) {
+        const changedAt = new Date().toISOString();
+        setCoupon(previous => previous ? {
+          ...previous,
+          status: actionType === 'CLAIM' ? 'CLAIMED' : 'CANCELLED',
+          ...(actionType === 'CLAIM' ? { claimed_at: changedAt } : { cancelled_at: changedAt }),
+        } : previous);
+        showToast(result.message || (actionType === 'CLAIM' ? 'Coupon redeemed successfully!' : 'Coupon cancelled.'), 'success');
+        void getCouponAuditHistory(coupon.id).then(setAuditHistory).catch(error => {
+          console.error('Failed to refresh coupon audit history', error);
+        });
+      } else {
+        showToast(result.error || `Failed to ${actionType.toLowerCase()} coupon`, 'error');
+        const latest = await getCouponByCode(coupon.coupon_code).catch(() => null);
+        if (latest) setCoupon(latest);
       }
-      await loadData();
     } catch (err: any) {
-      showToast(err.message || `Failed to ${modalState.type.toLowerCase()} coupon`, 'error');
+      showToast(err.message || `Failed to ${actionType.toLowerCase()} coupon`, 'error');
     } finally {
       setIsProcessing(false);
       setModalState({ isOpen: false, type: null });

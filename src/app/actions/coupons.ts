@@ -55,19 +55,8 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
       .limit(1)
       .maybeSingle();
 
-    const { data: existingCoupon, error: existingCouponError } = await findExistingCouponForPhone();
-    if (existingCouponError) {
-      return { success: false, error: `Database Error: ${existingCouponError.message}` };
-    }
-    if (existingCoupon) {
-      return {
-        success: true,
-        created: false,
-        message: 'This mobile number already has a coupon. The existing coupon was opened.',
-        data: existingCoupon,
-      };
-    }
-
+    // The database phone registry enforces one coupon per normalized number.
+    // Try the insert first so successful creates need only one database round trip.
     let code = '';
     let retryCount = 0;
     let coupon = null;
@@ -331,20 +320,8 @@ export async function claimCoupon(identifier: string): Promise<ApiResponse> {
         return { success: false, error: rpcResult?.message || 'The coupon claim was not confirmed. Please verify its status and try again.' };
       }
 
-      const { data: savedCoupon, error: statusError } = await supabase
-        .from('coupons')
-        .select('status')
-        .eq('id', coupon.id)
-        .maybeSingle();
-      if (!statusError && savedCoupon && savedCoupon.status !== 'CLAIMED') {
-        return { success: false, error: 'The coupon is still active. Its claim was not saved; refresh and try again.' };
-      }
-
-      return {
-        success: true,
-        message: 'Coupon redeemed successfully.',
-        ...(statusError ? { warning: 'The claim was accepted, but the updated status could not be reloaded.' } : {}),
-      };
+      // The atomic RPC returns success only after its update and audit insert commit.
+      return { success: true, message: 'Coupon redeemed successfully.' };
     }
 
     if (mutationFallbackUnavailable(rpcError)) {

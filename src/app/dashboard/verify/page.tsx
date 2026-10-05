@@ -94,15 +94,12 @@ export default function VerifyCouponPage() {
         return;
       }
 
-      // Refresh coupon data
-      const updated = await getCouponByCode(coupon.coupon_code);
-      if (updated && computeDisplayStatus(updated) === 'CLAIMED') {
-        setCoupon(updated);
-        showToast('Coupon claimed successfully!', 'success');
-      } else {
-        if (updated) setCoupon(updated);
-        showToast('The claim was not confirmed. This coupon still appears active; refresh and try again.', 'error');
-      }
+      setCoupon(previous => previous ? {
+        ...previous,
+        status: 'CLAIMED',
+        claimed_at: new Date().toISOString(),
+      } : previous);
+      showToast('Coupon claimed successfully!', 'success');
     } catch (err: any) {
       showToast(err.message || 'Failed to claim coupon', 'error');
     } finally {

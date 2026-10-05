@@ -1,5 +1,6 @@
 'use server';
 
+import { after } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminSessionToken } from '@/lib/auth/adminSession';
 import { writeAuditEvent } from '@/lib/audit/events';
@@ -54,7 +55,7 @@ export async function adminLoginAction(usernameInput: string, passwordInput: str
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    await writeAuditEvent('LOGIN', undefined, undefined, { username: email });
+    after(() => writeAuditEvent('LOGIN', undefined, undefined, { username: email }));
 
     return { success: true, message: 'Logged in successfully' };
   } catch (err: any) {
@@ -64,7 +65,7 @@ export async function adminLoginAction(usernameInput: string, passwordInput: str
 }
 
 export async function adminLogoutAction() {
-  await writeAuditEvent('LOGOUT');
+  after(() => writeAuditEvent('LOGOUT'));
   const cookieStore = await cookies();
   cookieStore.delete('akshaya_admin_session');
   cookieStore.delete('akshaya_admin_email');

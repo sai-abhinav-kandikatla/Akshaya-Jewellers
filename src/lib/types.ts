@@ -84,6 +84,7 @@ export interface DashboardStats {
   cancelled_count: number;
   total_value: number;
   active_value: number;
+  not_active_value: number;
   claimed_value: number;
   expired_value: number;
 }

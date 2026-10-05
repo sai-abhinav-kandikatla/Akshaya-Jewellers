@@ -2,7 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { DashboardStats, CouponWithDisplayStatus } from '@/lib/types';
-import { computeDisplayStatus } from '@/lib/utils/statusCompute';
+import { computeDisplayStatus, getISTDateString } from '@/lib/utils/statusCompute';
 import { isAdminAuthenticated } from '@/lib/auth/requireAdmin';
 
 export async function getDashboardStats(campaignId?: string): Promise<DashboardStats> {
@@ -15,6 +15,7 @@ export async function getDashboardStats(campaignId?: string): Promise<DashboardS
     cancelled_count: 0,
     total_value: 0,
     active_value: 0,
+    not_active_value: 0,
     claimed_value: 0,
     expired_value: 0,
   };
@@ -26,7 +27,22 @@ export async function getDashboardStats(campaignId?: string): Promise<DashboardS
     const { data, error } = await supabase.rpc('get_dashboard_stats', { p_campaign_id: campaignId || null });
 
     if (!error && data) {
-      return data as DashboardStats;
+      const stats = { ...fallbackStats, ...data } as DashboardStats;
+      if (stats.not_active_value === undefined || stats.not_active_value === 0) {
+        let notActiveQuery = supabase
+          .from('coupons')
+          .select('coupon_value')
+          .eq('status', 'ACTIVE')
+          .gt('valid_from', getISTDateString());
+        if (campaignId) {
+          notActiveQuery = notActiveQuery.eq('campaign_id', campaignId);
+        }
+        const { data: notActiveCoupons } = await notActiveQuery;
+        if (notActiveCoupons && notActiveCoupons.length > 0) {
+          stats.not_active_value = notActiveCoupons.reduce((sum: number, c: any) => sum + Number(c.coupon_value || 0), 0);
+        }
+      }
+      return stats;
     }
 
     // Direct table fallback if RPC fails or is missing
@@ -52,6 +68,7 @@ export async function getDashboardStats(campaignId?: string): Promise<DashboardS
         stats.active_value += val;
       } else if (status === 'NOT_ACTIVE') {
         stats.not_active_count++;
+        stats.not_active_value += val;
       } else if (status === 'CLAIMED') {
         stats.claimed_count++;
         stats.claimed_value += val;

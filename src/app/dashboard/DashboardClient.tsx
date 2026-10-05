@@ -73,7 +73,7 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
         </div>
       </div>
 
-      {/* Coupon Value Overview (User Request: Total Value, Active Value, Claimed Value, Expired Value) */}
+      {/* Coupon Value Overview (Total Value, Not Active Value, Claimed Value, Expired Value) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-700">
@@ -92,10 +92,10 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
             isValueOnly 
           />
           <CompactStatCard 
-            title="ACTIVE VALUE" 
-            count={formatCurrency(initialStats?.active_value || 0)} 
-            color="border-l-4 border-green-600 bg-green-50/40" 
-            textColor="text-green-700" 
+            title="NOT ACTIVE VALUE" 
+            count={formatCurrency(initialStats?.not_active_value || 0)} 
+            color="border-l-4 border-amber-500 bg-amber-50/40" 
+            textColor="text-amber-800" 
             isValueOnly 
           />
           <CompactStatCard 
@@ -121,7 +121,7 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
           Coupon Status Overview
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <CompactStatCard title="ACTIVE" count={initialStats?.active_count || 0} color="border-l-4 border-green-500 bg-green-50/40" textColor="text-green-700" />
+          <CompactStatCard title="NOT ACTIVE" count={initialStats?.not_active_count || 0} color="border-l-4 border-amber-500 bg-amber-50/40" textColor="text-amber-800" />
           <CompactStatCard title="CLAIMED" count={initialStats?.claimed_count || 0} color="border-l-4 border-blue-500 bg-blue-50/40" textColor="text-blue-700" />
           <CompactStatCard title="EXPIRED" count={initialStats?.expired_count || 0} color="border-l-4 border-red-500 bg-red-50/40" textColor="text-red-700" />
           <CompactStatCard title="CANCELLED" count={initialStats?.cancelled_count || 0} color="border-l-4 border-gray-400 bg-gray-50" textColor="text-gray-700" />

@@ -1,5 +1,6 @@
 'use server'
 
+import { after } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiResponse, Campaign, CreateCampaignInput } from '@/lib/types';
 import { writeAuditEvent } from '@/lib/audit/events';
@@ -35,7 +36,7 @@ export async function createCampaign(input: CreateCampaignInput): Promise<ApiRes
       return { success: false, error: 'Failed to create campaign.' };
     }
 
-    await writeAuditEvent('CAMPAIGN_CREATED', undefined, data.id, { name: data.name });
+    after(() => writeAuditEvent('CAMPAIGN_CREATED', undefined, data.id, { name: data.name }));
 
     return { success: true, data };
   } catch (error) {
@@ -110,7 +111,7 @@ export async function updateCampaign(id: string, updates: Partial<CreateCampaign
       return { success: false, error: 'Failed to update campaign.' };
     }
 
-    await writeAuditEvent('CAMPAIGN_UPDATED', undefined, id, safeUpdates);
+    after(() => writeAuditEvent('CAMPAIGN_UPDATED', undefined, id, safeUpdates));
 
     return { success: true, message: 'Campaign updated successfully.' };
   } catch (error) {
