@@ -1284,9 +1284,9 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
     inset: 0 0 auto;
     height: calc(58px + env(safe-area-inset-top, 0px));
     padding-top: env(safe-area-inset-top, 0px);
-    background: rgba(62, 39, 35, 0.97);
+    background: #3e2723;
     border-bottom: 1px solid rgba(212, 175, 55, 0.38);
-    box-shadow: 0 3px 12px rgba(45, 28, 25, 0.12);
+    box-shadow: 0 3px 12px rgba(45, 28, 25, 0.2);
     z-index: 60;
   }
 
@@ -1419,8 +1419,8 @@ h1, h2, h3, h4, h5, h6, .page-title, .login-title, .success-title {
   .dashboard-quick-action--verify { background: #2e7d32; }
   .dashboard-quick-action--coupons { background: #6d4c41; }
   .dashboard-create-btn { display: flex !important; }
-  .dashboard-total-card { min-height: 92px; padding: 17px 19px; border-radius: 16px; }
-  .dashboard-total-card > div:first-child p:last-child { font-size: 31px; }
+  .dashboard-total-card { min-height: 92px; padding: 17px 19px; border-radius: 16px; background: #3e2723 !important; color: #ffffff !important; }
+  .dashboard-total-card > div:first-child p:last-child { font-size: 31px; color: #d4af37 !important; }
   .dashboard-total-value-desktop { display: none; }
   .dashboard-stat-section { margin-top: 2px; }
   .dashboard-stat-heading { display: block; }

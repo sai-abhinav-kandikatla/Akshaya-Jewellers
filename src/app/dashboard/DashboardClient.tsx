@@ -34,7 +34,7 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
           <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
             <path d="M12 4v16m8-8H4" />
           </svg>
-          <span>+ CREATE COUPON</span>
+          <span>CREATE COUPON</span>
         </Link>
       </div>
 
@@ -60,20 +60,23 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
       </div>
 
       {/* Featured Total Coupons Card */}
-      <div className="dashboard-total-card card bg-[#3E2723] text-white p-5 rounded-2xl shadow-md flex items-center justify-between">
+      <div 
+        className="dashboard-total-card card !bg-[#3E2723] !text-white p-5 rounded-2xl shadow-md flex items-center justify-between"
+        style={{ backgroundColor: '#3E2723', color: '#ffffff' }}
+      >
         <div>
-          <p className="text-xs uppercase tracking-wider text-gray-300 font-semibold">Total Coupons Created</p>
-          <p className="text-3xl sm:text-4xl font-serif font-bold text-[#D4AF37] mt-1">
+          <p className="text-xs uppercase tracking-wider text-gray-300 font-semibold" style={{ color: '#d1d5db' }}>Total Coupons Created</p>
+          <p className="text-3xl sm:text-4xl font-serif font-bold text-[#D4AF37] mt-1" style={{ color: '#D4AF37' }}>
             {new Intl.NumberFormat('en-IN').format(initialStats?.total_count || 0)}
           </p>
         </div>
         <div className="dashboard-total-value-desktop text-right">
-          <p className="text-xs text-gray-300">Total Value</p>
-          <p className="text-lg font-bold text-white">{formatCurrency(initialStats?.total_value || 0)}</p>
+          <p className="text-xs text-gray-300" style={{ color: '#d1d5db' }}>Total Value</p>
+          <p className="text-lg font-bold text-white" style={{ color: '#ffffff' }}>{formatCurrency(initialStats?.total_value || 0)}</p>
         </div>
       </div>
 
-      {/* Coupon Value Overview (Total Value, Not Active Value, Claimed Value, Expired Value) */}
+      {/* Coupon Value Overview (All 5 values: Total, Active, Not Active, Claimed, Expired) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-700">
@@ -83,12 +86,21 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
             INR (₹)
           </span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="col-span-2 lg:col-span-1">
+            <CompactStatCard 
+              title="TOTAL VALUE" 
+              count={formatCurrency(initialStats?.total_value || 0)} 
+              color="border-l-4 border-[#3E2723] bg-stone-50" 
+              textColor="text-[#3E2723]" 
+              isValueOnly 
+            />
+          </div>
           <CompactStatCard 
-            title="TOTAL VALUE" 
-            count={formatCurrency(initialStats?.total_value || 0)} 
-            color="border-l-4 border-[#3E2723] bg-stone-50" 
-            textColor="text-[#3E2723]" 
+            title="ACTIVE VALUE" 
+            count={formatCurrency(initialStats?.active_value || 0)} 
+            color="border-l-4 border-green-600 bg-green-50/40" 
+            textColor="text-green-700" 
             isValueOnly 
           />
           <CompactStatCard 
@@ -115,16 +127,44 @@ export default function DashboardClient({ initialStats, recentCoupons }: any) {
         </div>
       </div>
 
-      {/* Coupon Count Overview */}
+      {/* Coupon Status Overview (All 5 statuses: Active, Not Active, Claimed, Expired, Cancelled) */}
       <div className="space-y-2">
         <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-700">
           Coupon Status Overview
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <CompactStatCard title="NOT ACTIVE" count={initialStats?.not_active_count || 0} color="border-l-4 border-amber-500 bg-amber-50/40" textColor="text-amber-800" />
-          <CompactStatCard title="CLAIMED" count={initialStats?.claimed_count || 0} color="border-l-4 border-blue-500 bg-blue-50/40" textColor="text-blue-700" />
-          <CompactStatCard title="EXPIRED" count={initialStats?.expired_count || 0} color="border-l-4 border-red-500 bg-red-50/40" textColor="text-red-700" />
-          <CompactStatCard title="CANCELLED" count={initialStats?.cancelled_count || 0} color="border-l-4 border-gray-400 bg-gray-50" textColor="text-gray-700" />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="col-span-2 lg:col-span-1">
+            <CompactStatCard 
+              title="ACTIVE" 
+              count={initialStats?.active_count || 0} 
+              color="border-l-4 border-green-500 bg-green-50/40" 
+              textColor="text-green-700" 
+            />
+          </div>
+          <CompactStatCard 
+            title="NOT ACTIVE" 
+            count={initialStats?.not_active_count || 0} 
+            color="border-l-4 border-amber-500 bg-amber-50/40" 
+            textColor="text-amber-800" 
+          />
+          <CompactStatCard 
+            title="CLAIMED" 
+            count={initialStats?.claimed_count || 0} 
+            color="border-l-4 border-blue-500 bg-blue-50/40" 
+            textColor="text-blue-700" 
+          />
+          <CompactStatCard 
+            title="EXPIRED" 
+            count={initialStats?.expired_count || 0} 
+            color="border-l-4 border-red-500 bg-red-50/40" 
+            textColor="text-red-700" 
+          />
+          <CompactStatCard 
+            title="CANCELLED" 
+            count={initialStats?.cancelled_count || 0} 
+            color="border-l-4 border-gray-400 bg-gray-50" 
+            textColor="text-gray-700" 
+          />
         </div>
       </div>
 
