@@ -1,5 +1,6 @@
 'use server'
 
+import { after } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ApiResponse, Coupon, CouponWithDisplayStatus, CreateCouponInput, CouponFilters } from '@/lib/types';
 import { generateCouponCode } from '@/lib/utils/couponCode';
@@ -133,24 +134,18 @@ export async function createCoupon(input: CreateCouponInput): Promise<ApiRespons
       };
     }
 
-    // Trigger WhatsApp Cloud API sending
-    try {
-      await sendWhatsAppCloudAPI(coupon);
-    } catch (waErr) {
-      console.warn('Non-fatal WhatsApp trigger warning:', waErr);
-    }
-
-
-    // Log Audit Record
-    try {
-      await writeAuditEvent('COUPON_CREATED', coupon.id, input.campaign_id || undefined, {
-        customer_name: coupon.customer_name,
-        phone_number: coupon.phone_number,
-        code: coupon.coupon_code
-      });
-    } catch (auditErr) {
-      console.warn('Non-fatal audit log failure:', auditErr);
-    }
+    // Send the response as soon as the coupon is saved; these side effects
+    // continue in the background and no longer delay the Generate button.
+    after(async () => {
+      await Promise.allSettled([
+        sendWhatsAppCloudAPI(coupon),
+        writeAuditEvent('COUPON_CREATED', coupon.id, input.campaign_id || undefined, {
+          customer_name: coupon.customer_name,
+          phone_number: coupon.phone_number,
+          code: coupon.coupon_code
+        }),
+      ]);
+    });
 
     return { success: true, created: true, message: 'Coupon created successfully', data: coupon };
   } catch (error: any) {
